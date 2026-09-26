@@ -19,7 +19,7 @@ import { words, DEFAULT_MODEL } from './lib/llm.mjs';
 import { voice, voiceStream, DEFAULT_TTS_MODEL, DEFAULT_VOICE } from './lib/tts.mjs';
 import { INTERJECTIONS, MOODS, TIER_INTENSITY, tierOf, FALLBACK_LINES } from './lib/criteria.mjs';
 import { createHash } from 'node:crypto';
-import { styleFor, TTS_TEXT_VERSION } from './lib/tts.mjs';
+import { styleFor, TTS_TEXT_VERSION, forSpeech } from './lib/tts.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 loadEnv(path.join(here, '.env'));
@@ -58,6 +58,7 @@ const sfxName = (kind, mood, tier, voice = DEFAULT_VOICE) => {
 const sfxFile = (kind, mood, tier, voice) => path.join(SFX_DIR, sfxName(kind, mood, tier, voice));
 const sfxExisting = (kind, mood, tier, voice) => [path.join(SFX_BUNDLED, sfxName(kind, mood, tier, voice)), sfxFile(kind, mood, tier, voice)].find((f) => fs.existsSync(f));
 async function sfxPcm(kind, mood, tier, voice = DEFAULT_VOICE) {
+  if (!forSpeech(sfxText(kind, mood, tier))) return { buf: Buffer.alloc(0), rate: 24000, silent: true }; // 「……」だけの一言は無音
   const key = kind + '_' + mood + '_' + tier + '_' + voice;
   const file = sfxFile(kind, mood, tier, voice);
   const have = sfxExisting(kind, mood, tier, voice);
@@ -229,7 +230,7 @@ const server = http.createServer(async (req, res) => {
 async function prewarmSfx() {
   if (!has.tts || process.env.PREWARM_SFX === '0') return;
   const missing = [];
-  for (const kind of Object.keys(INTERJECTIONS)) for (const mood of Object.keys(INTERJECTIONS[kind])) for (let tier = 0; tier < 3; tier++) if (sfxText(kind, mood, tier) && !sfxExisting(kind, mood, tier)) missing.push([kind, mood, tier]);
+  for (const kind of Object.keys(INTERJECTIONS)) for (const mood of Object.keys(INTERJECTIONS[kind])) for (let tier = 0; tier < 3; tier++) if (forSpeech(sfxText(kind, mood, tier)) && !sfxExisting(kind, mood, tier)) missing.push([kind, mood, tier]);
   const gap = Number(process.env.PREWARM_INTERVAL_MS || 3000); // 無料枠（1 分 3 回）なら 22000 にする
   for (const text of fixedTexts()) { const mood = (text === scenario.opening || (scenario.episodes || []).some((ep) => ep.opening === text)) ? 'shy' : 'calm'; if (!fs.existsSync(path.join(SFX_BUNDLED, fixedName(text, mood, DEFAULT_VOICE))) && !fs.existsSync(path.join(SFX_DIR, fixedName(text, mood, DEFAULT_VOICE)))) missing.push(['fixed', text, mood]); }
   if (missing.length) console.log('  一言の音声を ' + missing.length + ' 個作ります（' + gap / 1000 + ' 秒おき。PREWARM_SFX=0 で止められる・PREWARM_INTERVAL_MS で間隔）');
@@ -241,8 +242,9 @@ async function prewarmSfx() {
         if (kind === 'fixed') { await fixedPcm(mood, tier, DEFAULT_VOICE); console.log('  決まった台詞の音声を用意: 「' + mood.slice(0, 18) + '…」'); break; }
         await sfxPcm(kind, mood, tier); console.log('  一言の音声を用意: ' + kind + '/' + mood + '/' + tier + '「' + sfxText(kind, mood, tier) + '」'); break; }
       catch (e) {
-        const m = e.message.match(/retry in (\d+)s/i);
-        if (/429/.test(e.message) && attempt < 2) { await new Promise((r) => setTimeout(r, ((m ? +m[1] : 20) + 1) * 1000)); continue; }
+        const m = e.message.match(/retry in (?:(\d+)m)?(\d+)?s?/i);
+        const waitSec = m ? (Number(m[1] || 0) * 60 + Number(m[2] || 0)) : 20;
+        if (/429|rate limit/i.test(e.message) && attempt < 2 && waitSec <= 60) { await new Promise((r) => setTimeout(r, (waitSec + 1) * 1000)); continue; }
         console.log('  一言の音声は後で: ' + kind + '/' + mood + '/' + tier + '（' + e.message.slice(0, 120) + '）');
       }
     }
@@ -271,7 +273,7 @@ async function fixedPcm(text, mood, voice) {
   return fixedPending[name];
 }
 function sfxStatus(voice = DEFAULT_VOICE) {
-  const all = []; for (const kind of Object.keys(INTERJECTIONS)) for (const mood of Object.keys(INTERJECTIONS[kind])) for (let tier = 0; tier < 3; tier++) if (sfxText(kind, mood, tier)) all.push(kind + '/' + mood + '/' + tier);
+  const all = []; for (const kind of Object.keys(INTERJECTIONS)) for (const mood of Object.keys(INTERJECTIONS[kind])) for (let tier = 0; tier < 3; tier++) if (forSpeech(sfxText(kind, mood, tier))) all.push(kind + '/' + mood + '/' + tier);
   const ready = all.filter((k) => { const [kind, mood, tier] = k.split('/'); return !!sfxExisting(kind, mood, Number(tier), voice); });
   return { total: all.length, ready, voice };
 }
