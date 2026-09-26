@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>#Jevカノ</title>
+<style>
+  :root { --bg:#f5efe3; --panel:#fffdf8; --ink:#2a2d3f; --sub:#6b6f85; --accent:#e8834a; --accent2:#f0a35a; --ok:#3aa76d; --warn:#c77d12; --bad:#d9534f; --line:#e6ddcc; --jev:#3b82c6; --llm:#e8834a; --dock:190px; --field:#fbf7ef; --bubble-user:#e6f0fb; --bubble-her:#fff1e4; --chip:#f6efe4; }
+  * { box-sizing: border-box; }
+  html { scroll-padding-bottom: var(--dock); }
+  body { margin:0; padding-bottom: var(--dock); background:linear-gradient(180deg, #fbe7cf 0%, var(--bg) 42%); color:var(--ink); font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic UI",system-ui,sans-serif; font-size:15px; }
+  header { display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; padding:8px 16px; border-bottom:1px solid var(--line); }
+  header h1 { font-size:17px; margin:0; letter-spacing:.04em; }
+  header label { color:var(--sub); font-size:13px; display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+  header .models { color:var(--sub); font-size:12px; margin-left:auto; }
+  main { display:grid; grid-template-columns:300px 1fr; gap:14px; padding:14px 16px 0; max-width:1120px; margin:0 auto; align-items:start; }
+  @media (max-width:800px) { main { grid-template-columns:1fr; } }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:12px; }
+  .face { display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .face .stage { width:240px; height:256px; display:flex; align-items:center; justify-content:center; position:relative; }
+  .face svg, .face img.photo { width:240px; height:256px; object-fit:contain; border-radius:14px; }
+  @media (max-height:640px) { .face .stage, .face svg, .face img.photo { width:170px; height:182px; } }
+  .face .name { font-weight:700; letter-spacing:.06em; }
+  .face .mood { color:var(--sub); font-size:13px; min-height:1.3em; text-align:center; }
+  .face .mood b { color:var(--jev); font-weight:600; }
+  .face .mood b.llm { color:var(--llm); }
+  .bar { width:100%; height:8px; background:#eadfce; border-radius:6px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); width:50%; transition:width .35s; }
+  .aff { display:flex; justify-content:space-between; width:100%; color:var(--sub); font-size:12px; }
+  .clock { width:100%; font-variant-numeric:tabular-nums; font-size:12px; color:var(--sub); border-top:1px dashed var(--line); padding-top:6px; }
+  .clock .row { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:1px 0; }
+  .clock .lbl { min-width:3.5em; }
+  .clock .val { font-size:14px; color:var(--ink); min-width:4.5em; text-align:right; }
+  .clock .val.run { color:var(--warn); }
+  .clock .val.jev { color:var(--jev); }
+  .clock .val.llm { color:var(--llm); }
+  .clock .track { flex:1; height:6px; background:#eadfce; border-radius:3px; position:relative; overflow:hidden; }
+  .clock .track i { position:absolute; left:0; top:0; height:100%; width:0; background:currentColor; opacity:.7; }
+  .log { display:flex; flex-direction:column; gap:10px; min-height:120px; }
+  .msg { padding:10px 12px; border-radius:12px; max-width:92%; line-height:1.6; white-space:pre-wrap; }
+  .msg.user { align-self:flex-end; background:var(--bubble-user); }
+  .msg.user.act { background:transparent; border:1px dashed var(--line); color:var(--sub); }
+  .msg.her { align-self:flex-start; background:var(--bubble-her); border-left:3px solid var(--accent); }
+  .msg.her.pending { color:var(--sub); font-style:italic; }
+  .msg.her .say { color:var(--jev); display:block; }
+  .msg.her .line { display:block; margin-top:.9em; animation:fadeIn .35s ease-out; }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  .msg.intro { align-self:stretch; max-width:none; background:var(--chip); border:1px dashed var(--line); color:var(--sub); font-size:13px; line-height:1.7; }
+  .meta { font-size:12px; color:var(--sub); display:flex; flex-wrap:wrap; gap:6px 12px; align-self:flex-start; padding-left:4px; align-items:center; }
+  .meta b { color:var(--ink); font-weight:500; }
+  .tag { display:inline-block; padding:1px 8px; border-radius:999px; font-size:11px; border:1px solid var(--line); }
+  .tag.bad { border-color:var(--bad); color:var(--bad); }
+  /* 入力欄は画面の下に固定 */
+  .dock { position:fixed; left:0; right:0; bottom:0; background:rgba(255,253,248,.96); border-top:1px solid var(--line); padding:8px 16px 10px; z-index:5; }
+  .dock .inner { max-width:1120px; margin:0 auto; display:flex; flex-direction:column; gap:6px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .chips .lbl { font-size:12px; color:var(--sub); margin-right:2px; }
+  .chips button { background:var(--chip); color:var(--ink); border:1px solid var(--line); border-radius:999px; padding:5px 12px; font-size:13px; cursor:pointer; }
+  .chips button:hover { border-color:var(--accent); }
+  .chips button.act { border-color:#cfd8e6; color:var(--ink); }
+  .chips button.act:hover { border-color:var(--jev); }
+  .row2 { display:flex; gap:8px; }
+  textarea { flex:1; resize:none; height:46px; border-radius:10px; border:1px solid var(--line); background:var(--field); color:var(--ink); padding:8px 10px; font:inherit; }
+  textarea:focus { outline:1px solid var(--accent); }
+  button.send { background:var(--accent); color:#fff; border:0; border-radius:10px; padding:0 18px; font-weight:700; cursor:pointer; }
+  button.send:disabled { opacity:.5; cursor:default; }
+  .hint { font-size:11px; color:var(--sub); }
+  .foot { color:var(--sub); font-size:12px; line-height:1.7; padding:8px 16px 16px; max-width:1120px; margin:0 auto; }
+  .ending { position:fixed; inset:0; background:rgba(42,45,63,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:9; }
+  .ending .box { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:520px; width:100%; text-align:center; }
+  .ending h2 { margin:0 0 8px; font-size:18px; }
+  .ending p { margin:8px 0; line-height:1.7; }
+  .ending button { margin-top:10px; background:var(--accent); color:#fff; border:0; border-radius:10px; padding:8px 18px; font-weight:700; cursor:pointer; }
+  /* 通常表示では数字を出さない。body.debug で従来の表示 */
+  .dbg { display:none !important; }
+  body.debug .dbg { display:revert !important; }
+  body.debug .dbg.row { display:flex !important; }
+  body.debug .meta.dbg { display:flex !important; }
+  /* 導入画面 */
+  .title { position:fixed; inset:0; background:linear-gradient(180deg, #fbe7cf 0%, var(--bg) 60%); z-index:20; display:flex; align-items:center; justify-content:center; padding:20px; overflow:auto; }
+  .title .box { max-width:640px; width:100%; background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:26px 28px; }
+  .title h2 { margin:0 0 4px; font-size:24px; letter-spacing:.06em; }
+  .title .sub { color:var(--sub); font-size:13px; margin-bottom:16px; }
+  .title p.intro { line-height:1.8; font-size:14px; color:var(--ink); background:var(--chip); border:1px dashed var(--line); border-radius:12px; padding:12px 14px; }
+  .title label.f { display:block; margin:12px 0 4px; color:var(--sub); font-size:13px; }
+  .title input, .title select { width:100%; border-radius:10px; border:1px solid var(--line); background:var(--field); color:var(--ink); padding:9px 10px; font:inherit; }
+  .title .start { margin-top:18px; width:100%; background:var(--accent); color:#fff; border:0; border-radius:12px; padding:12px; font-weight:700; font-size:15px; cursor:pointer; }
+  .title .note { color:var(--sub); font-size:12px; margin-top:12px; line-height:1.6; }
+  .help { background:var(--chip); color:var(--ink); border:1px solid var(--line); border-radius:999px; width:28px; height:28px; cursor:pointer; font-weight:700; }
+  .help:hover { border-color:var(--accent); }
+  .modal { position:fixed; inset:0; background:rgba(42,45,63,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:30; overflow:auto; }
+  .modal .box { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:22px 24px; max-width:640px; width:100%; max-height:90vh; overflow:auto; }
+  .modal h3 { margin:0 0 10px; font-size:17px; }
+  .modal dl { margin:0; }
+  .modal dt { color:var(--accent2); font-weight:600; margin-top:10px; font-size:13px; }
+  .modal dd { margin:2px 0 0; line-height:1.7; font-size:14px; }
+  .modal .close { margin-top:14px; background:var(--accent); color:#fff; border:0; border-radius:10px; padding:8px 18px; font-weight:700; cursor:pointer; }
+  .modal label { display:block; margin-top:12px; color:var(--sub); font-size:13px; }
+  .left { display:flex; justify-content:space-between; width:100%; color:var(--sub); font-size:12px; margin-top:2px; }
+  .toast { position:fixed; left:50%; top:64px; transform:translateX(-50%); background:#fff; border:1px solid var(--accent2); color:var(--accent2); border-radius:999px; padding:6px 14px; font-size:13px; z-index:40; animation:toastIn 2.6s ease-out forwards; }
+  @keyframes toastIn { 0% { opacity:0; transform:translate(-50%,-6px); } 12% { opacity:1; transform:translate(-50%,0); } 80% { opacity:1; } 100% { opacity:0; } }
+  .ending.perfect .box { border-color:var(--accent2); box-shadow:0 0 40px rgba(255,179,122,.35); }
+  .ending.perfect h2 { color:var(--accent2); }
+  .pop { animation:pop .28s cubic-bezier(.2,.9,.3,1.4); }
+  @keyframes pop { 0% { transform:scale(.97) translateY(2px); } 100% { transform:scale(1) translateY(0); } }
+  .zone { fill:#fff; fill-opacity:0; transition:fill-opacity .15s; }
+  #photoZones { position:absolute; inset:0; }
+  .pz { position:absolute; border-radius:40%; cursor:pointer; background:#fff; opacity:0; transition:opacity .15s; }
+  .pz:hover { opacity:.14; }
+  .pz.warn:hover { background:#ff6b6b; }
+  .zone:hover { fill-opacity:.16; }
+  .zoneTip { position:absolute; left:50%; bottom:6px; transform:translateX(-50%); font-size:12px; color:var(--jev); background:rgba(255,253,248,.92); border:1px solid var(--line); border-radius:999px; padding:2px 10px; pointer-events:none; opacity:0; transition:opacity .15s; white-space:nowrap; }
+  .zoneTip.on { opacity:1; }
+  @media (max-height:520px) { .dock .hint, .dock #chips { display:none; } :root { --dock:120px; } }
+  .lid { animation:blink 4.2s ease-in-out infinite; transform-box:fill-box; transform-origin:50% 40%; }
+  @keyframes blink { 0%,95.5%,100% { transform:scaleY(1); } 97.5% { transform:scaleY(.06); } }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="appTitle">#Jevカノ</h1>
+  <label class="dbg"><input type="radio" name="mode" value="reflex" checked> 反射モード（Jev が本音を先に決める）</label>
+  <label class="dbg"><input type="radio" name="mode" value="llm"> LLM だけ（言葉と一緒に顔が出る）</label>
+  <label><input type="checkbox" id="voice" checked> 声</label>
+  <button type="button" id="helpBtn" class="help" title="遊び方">？</button>
+  <label class="dbg"><input type="checkbox" id="debugToggle" checked> デバッグ</label>
+  <span class="models dbg" id="models"></span>
+  <span class="models" id="sfxState" style="margin-left:auto;color:var(--warn)"></span>
+  <span class="models" id="notice" style="margin-left:0;color:var(--warn)"></span>
+</header>
+<main>
+  <section class="card face">
+    <div class="stage" id="stage">
+      <svg viewBox="-110 -125 220 250" id="faceSvg" aria-label="ヒロインの顔">
+        <defs>
+          <radialGradient id="iris" cx="50%" cy="35%" r="65%"><stop offset="0%" stop-color="#bfe4ff"/><stop offset="45%" stop-color="#4f8fe8"/><stop offset="100%" stop-color="#1b3a86"/></radialGradient>
+          <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#a48cf0"/><stop offset="100%" stop-color="#6d55c9"/></linearGradient>
+          <linearGradient id="hairDark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7e66d6"/><stop offset="100%" stop-color="#4a3699"/></linearGradient>
+          <linearGradient id="skinSh" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffe9de"/><stop offset="100%" stop-color="#ffd9c8"/></linearGradient>
+          <clipPath id="faceClip"><path d="M-70 -30 Q-74 36 -42 76 Q-16 98 0 98 Q16 98 42 76 Q74 36 70 -30 Q58 -88 0 -90 Q-58 -88 -70 -30 Z"/></clipPath>
+        </defs>
+        <!-- 後ろ髪（長い） -->
+        <path d="M-88 -40 Q-108 50 -92 125 L92 125 Q108 50 88 -40 Q76 -112 0 -114 Q-76 -112 -88 -40 Z" fill="url(#hairDark)"/>
+        <!-- 首と肩・ブラウス・襟・リボン -->
+        <path d="M-15 80 L-15 100 L15 100 L15 80 Z" fill="#f6cdb9"/>
+        <path d="M-92 125 Q-70 100 -20 96 L0 112 L20 96 Q70 100 92 125 Z" fill="#fbfbff"/>
+        <path d="M-20 96 L0 112 L20 96 L14 90 L0 104 L-14 90 Z" fill="#dfe3f5"/>
+        <g transform="translate(0 110)"><path d="M0 0 L-16 -8 L-14 8 Z" fill="#ff7fae"/><path d="M0 0 L16 -8 L14 8 Z" fill="#ff7fae"/><circle r="4" fill="#ff5c96"/><path d="M-3 3 L-8 20 M3 3 L8 20" stroke="#ff7fae" stroke-width="4" stroke-linecap="round"/></g>
+        <!-- 耳 -->
+        <ellipse cx="-70" cy="14" rx="7" ry="11" fill="#ffd9c8"/><ellipse cx="70" cy="14" rx="7" ry="11" fill="#ffd9c8"/>
+        <!-- 顔 -->
+        <path d="M-70 -30 Q-74 36 -42 76 Q-16 98 0 98 Q16 98 42 76 Q74 36 70 -30 Q58 -88 0 -90 Q-58 -88 -70 -30 Z" fill="url(#skinSh)"/>
+        <path d="M-62 30 Q-40 80 0 92 Q40 80 62 30" fill="none" stroke="#f4c5b0" stroke-width="2" opacity=".6"/>
+        <!-- ほほ -->
+        <ellipse id="blushL" cx="-46" cy="40" rx="15" ry="7" fill="#ff9fb8" opacity="0"/>
+        <ellipse id="blushR" cx="46" cy="40" rx="15" ry="7" fill="#ff9fb8" opacity="0"/>
+        <g id="blushLines" opacity="0" stroke="#ff7fae" stroke-width="1.6" stroke-linecap="round"><path d="M-54 36 l4 8 M-47 34 l4 8 M-40 36 l4 8 M40 36 l4 8 M47 34 l4 8 M54 36 l4 8"/></g>
+        <!-- 眉 -->
+        <path id="browL" d="M-48 -26 Q-34 -33 -16 -27" stroke="#6d55c9" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path id="browR" d="M16 -27 Q34 -33 48 -26" stroke="#6d55c9" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <!-- 目（開いているとき） -->
+        <g id="eyesOpen">
+          <g id="eyeGL" transform="translate(-31 12)"><g class="lid">
+            <path d="M-19 -6 Q-17 -22 0 -22 Q17 -22 19 -6 Q17 14 0 16 Q-17 14 -19 -6 Z" fill="#fff"/>
+            <g id="irisL"><ellipse rx="11.5" ry="15.5" cy="-2" fill="url(#iris)"/><ellipse rx="5.5" ry="8" cy="0" fill="#0e1f4f"/><circle r="4.6" cx="-4.5" cy="-9" fill="#fff"/><circle r="2.2" cx="5" cy="5" fill="#fff" opacity=".95"/><ellipse rx="9" ry="4" cy="8" fill="#8fd0ff" opacity=".35"/></g>
+            <path d="M-20 -8 Q-16 -25 0 -25 Q16 -25 20 -8" stroke="#2a2140" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+            <path d="M-20 -8 L-25 -13 M-14 -20 L-17 -26" stroke="#2a2140" stroke-width="3" stroke-linecap="round"/>
+            <path d="M-14 13 Q0 18 14 13" stroke="#2a2140" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/>
+          </g></g>
+          <g id="eyeGR" transform="translate(31 12)"><g class="lid">
+            <path d="M-19 -6 Q-17 -22 0 -22 Q17 -22 19 -6 Q17 14 0 16 Q-17 14 -19 -6 Z" fill="#fff"/>
+            <g id="irisR"><ellipse rx="11.5" ry="15.5" cy="-2" fill="url(#iris)"/><ellipse rx="5.5" ry="8" cy="0" fill="#0e1f4f"/><circle r="4.6" cx="-4.5" cy="-9" fill="#fff"/><circle r="2.2" cx="5" cy="5" fill="#fff" opacity=".95"/><ellipse rx="9" ry="4" cy="8" fill="#8fd0ff" opacity=".35"/></g>
+            <path d="M-20 -8 Q-16 -25 0 -25 Q16 -25 20 -8" stroke="#2a2140" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+            <path d="M20 -8 L25 -13 M14 -20 L17 -26" stroke="#2a2140" stroke-width="3" stroke-linecap="round"/>
+            <path d="M-14 13 Q0 18 14 13" stroke="#2a2140" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/>
+          </g></g>
+        </g>
+        <!-- 目（閉じて笑う） -->
+        <g id="eyesClosed" opacity="0">
+          <path d="M-50 10 Q-31 -8 -12 10" stroke="#2a2140" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+          <path d="M12 10 Q31 -8 50 10" stroke="#2a2140" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+          <path d="M-52 10 L-56 6 M52 10 L56 6" stroke="#2a2140" stroke-width="3" stroke-linecap="round"/>
+        </g>
+        <!-- 鼻・口 -->
+        <path d="M2 34 Q5 38 1 40" stroke="#e8b3a0" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path id="mouth" d="M-7 55 Q0 59 7 55" stroke="#d9536f" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 横の髪・前髪（顔の上に重ねる） -->
+        <path d="M-72 -30 Q-96 30 -84 118 Q-64 70 -60 -10 Z" fill="url(#hair)"/>
+        <path d="M72 -30 Q96 30 84 118 Q64 70 60 -10 Z" fill="url(#hair)"/>
+        <path d="M-76 -36 Q-72 -110 0 -112 Q72 -110 76 -36 Q70 -40 62 -22 Q58 -66 44 -30 Q36 -74 22 -36 Q10 -80 -4 -34 Q-18 -78 -32 -34 Q-44 -70 -56 -26 Q-64 -44 -76 -36 Z" fill="url(#hair)"/>
+        <path d="M-50 -86 Q-20 -104 20 -98" stroke="#d8ccff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".55"/>
+        <path d="M6 -110 Q10 -128 26 -124 Q14 -122 12 -110" fill="url(#hair)"/>
+        <!-- リボン -->
+        <g transform="translate(62 -72) rotate(-15)"><path d="M0 0 L-24 -13 L-19 11 Z" fill="#ff7fae"/><path d="M0 0 L24 -13 L19 11 Z" fill="#ff7fae"/><circle r="5.5" fill="#ff5c96"/></g>
+        <!-- 記号 -->
+        <path id="sweat" d="M70 -40 Q80 -24 70 -14 Q60 -24 70 -40 Z" fill="#8fd0ff" opacity="0"/>
+        <path id="anger" d="M-80 -60 l12 0 M-74 -66 l0 12 M-66 -60 l12 0 M-60 -66 l0 12" stroke="#ff6b6b" stroke-width="3.5" stroke-linecap="round" opacity="0"/>
+        <g id="sparkle" opacity="0" fill="#fff2a8"><path d="M78 -46 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3 Z"/><path d="M-88 4 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z"/></g>
+        <path id="dots" d="M60 -52 a3 3 0 1 0 .1 0 M70 -58 a3 3 0 1 0 .1 0 M80 -64 a3 3 0 1 0 .1 0" fill="#b7abcc" opacity="0"/>
+        <!-- 手（握れる） -->
+        <g id="handG" transform="translate(72 98)"><path d="M-14 26 Q-16 8 -6 2 Q0 -2 6 2 Q14 6 16 12 Q20 20 14 30 Q6 36 -4 34 Q-12 32 -14 26 Z" fill="#ffe9de" stroke="#f0c9b4" stroke-width="1.5"/><path d="M-4 4 L-2 -8 M4 4 L7 -7 M11 8 L15 -2" stroke="#f0c9b4" stroke-width="2" stroke-linecap="round"/></g>
+        <!-- 触れる場所（透明。hover で薄く光る） -->
+        <g id="zones" style="cursor:pointer">
+          <path class="zone" data-act="pat" data-label="頭をなでる" d="M-76 -36 Q-72 -110 0 -112 Q72 -110 76 -36 Q40 -58 0 -56 Q-40 -58 -76 -36 Z"/>
+          <path class="zone" data-act="flick" data-label="デコピン" d="M-50 -56 Q0 -70 50 -56 L46 -30 Q0 -40 -46 -30 Z"/>
+          <ellipse class="zone" data-act="poke" data-label="頬をつつく" cx="-48" cy="44" rx="20" ry="17"/>
+          <ellipse class="zone" data-act="poke" data-label="頬をつつく" cx="48" cy="44" rx="20" ry="17"/>
+          <ellipse class="zone" data-act="shoulder" data-label="肩に触れる" cx="-72" cy="114" rx="22" ry="14"/>
+          <ellipse class="zone" data-act="shoulder" data-label="肩に触れる" cx="72" cy="114" rx="22" ry="14"/>
+          <ellipse class="zone" data-act="chest" data-label="胸元に触れる" cx="0" cy="114" rx="20" ry="12"/>
+        </g>
+      </svg>
+      <div class="zoneTip" id="zoneTip"></div>
+      <img class="photo" id="facePhoto" alt="" style="display:none">
+      <div id="photoZones" style="display:none">
+        <div class="pz" data-act="pat" data-label="頭をなでる" style="left:20%;top:0;width:60%;height:22%"></div>
+        <div class="pz" data-act="flick" data-label="デコピン" style="left:33%;top:22%;width:34%;height:12%"></div>
+        <div class="pz" data-act="poke" data-label="頬をつつく" style="left:24%;top:38%;width:18%;height:16%"></div>
+        <div class="pz" data-act="poke" data-label="頬をつつく" style="left:58%;top:38%;width:18%;height:16%"></div>
+        <div class="pz" data-act="shoulder" data-label="肩に触れる" style="left:4%;top:66%;width:24%;height:22%"></div>
+        <div class="pz" data-act="shoulder" data-label="肩に触れる" style="left:72%;top:66%;width:24%;height:22%"></div>
+        <div class="pz warn" data-act="chest" data-label="胸元に触れる" style="left:36%;top:72%;width:28%;height:26%"></div>
+      </div>
+    </div>
+    <div class="name" id="name">—</div>
+    <div class="mood dbg" id="moodText">&nbsp;</div>
+    <div class="bar"><i id="affBar"></i></div>
+    <div class="aff"><span>親しさ</span><span class="dbg" id="affNum">50</span></div>
+    <div class="left"><span>片付け</span><span id="turnsLeft">—</span></div>
+    <div class="left"><span>開いた話題</span><span id="topics"></span></div>
+    <div class="clock dbg" id="clock">
+      <div class="row"><span class="lbl">顔</span><span class="val jev" id="cFace">—</span><span class="track" style="color:var(--jev)"><i id="tFace"></i></span></div>
+      <div class="row"><span class="lbl">一言</span><span class="val jev" id="cSfx">—</span><span class="track" style="color:var(--jev)"><i id="tSfx"></i></span></div>
+      <div class="row"><span class="lbl">言葉</span><span class="val llm" id="cWords">—</span><span class="track" style="color:var(--llm)"><i id="tWords"></i></span></div>
+      <div class="row"><span class="lbl">声</span><span class="val" id="cVoice">—</span><span class="track" style="color:var(--sub)"><i id="tVoice"></i></span></div>
+    </div>
+  </section>
+  <section class="card">
+    <div class="log" id="log"></div>
+  </section>
+</main>
+<div class="foot dbg" id="foot"></div>
+<div class="modal" id="help"><div class="box">
+  <h3>遊び方</h3>
+  <dl id="helpBody"></dl>
+  <label><input type="checkbox" id="browserVoiceToggle"> Gemini の声が使えないとき、ブラウザの合成音声で代用する（既定はオフ。字幕だけになる）</label>
+  <label><input type="checkbox" id="debugToggle2"> デバッグ表示（時間・数値・判定名・反射／LLM の切替）</label>
+  <button type="button" class="close" id="helpClose">閉じる</button>
+</div></div>
+<div class="title" id="title"><div class="box">
+  <h2 id="titleName">#Jevカノ</h2>
+  <div class="sub" id="titleSub">顔が先に動いて、言葉はあとから来る</div>
+  <p class="intro" id="titleIntro"></p>
+  <p class="intro" id="titleGoal" style="border-style:solid;color:var(--accent2)"></p>
+  <label class="f" for="playerName">あなたの名前</label>
+  <input id="playerName" maxlength="20" placeholder="例: 拓海" autocomplete="off">
+  <label class="f" for="heroineName">彼女の名前</label>
+  <select id="heroineName"></select>
+  <label class="f" for="episode">はじまり</label>
+  <select id="episode"></select>
+  <button class="start" id="startBtn">はじめる</button>
+  <div class="note">人物も場面も架空です。台詞は判定のため TypeSafe AI（Jev）と Anthropic（Claude）へ、声を出すときは Google（Gemini TTS）へ送られます。</div>
+</div></div>
+<div class="dock"><div class="inner">
+  <form id="form">
+    <div class="chips" id="chips"></div>
+    <div class="row2">
+      <textarea id="input" placeholder="台詞を入力（Enter で送る・Shift+Enter で改行）"></textarea>
+      <button class="send" id="send" type="submit">言う</button>
+    </div>
+  </form>
+</div></div>
+<div class="ending" id="ending"><div class="box"><h2 id="endTitle"></h2><p id="endText"></p><p id="endNote" style="color:var(--accent2);font-size:13px"></p><p id="endStats" class="dbg" style="color:var(--sub);font-size:13px"></p><button id="again">もう一度</button></div></div>
+<script>
+const MOOD_JA = { joy:'嬉しい', shy:'照れる', puzzled:'困る', upset:'不機嫌', calm:'平静' };
+const TOPIC_JA = { book:'本', cook:'料理', stage:'明日のステージ', circle:'サークル' };
+function toast(t) { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); }
+const FACES = {
+  joy:     { closed:true,  irisDx:0,  irisDy:0,  eyeSy:1,   browL:'M-48 -32 Q-34 -39 -16 -33', browR:'M16 -33 Q34 -39 48 -32', mouth:'M-14 52 Q0 68 14 52 Z', mouthFill:'#d9536f', blush:.55, lines:0, sweat:0, anger:0, sparkle:1, dots:0 },
+  shy:     { closed:false, irisDx:7,  irisDy:3,  eyeSy:.9,  browL:'M-48 -22 Q-34 -30 -16 -26', browR:'M16 -26 Q34 -30 48 -22', mouth:'M-6 56 Q-3 52 0 56 Q3 60 6 56', mouthFill:'none', blush:1, lines:1, sweat:0, anger:0, sparkle:0, dots:1 },
+  puzzled: { closed:false, irisDx:-4, irisDy:2,  eyeSy:1,   browL:'M-48 -24 Q-34 -30 -16 -29', browR:'M16 -36 Q34 -40 48 -28', mouth:'M-8 57 Q-4 52 0 57 Q4 62 8 57', mouthFill:'none', blush:0, lines:0, sweat:1, anger:0, sparkle:0, dots:0 },
+  upset:   { closed:false, irisDx:0,  irisDy:-1, eyeSy:.66, browL:'M-48 -36 Q-34 -30 -16 -22', browR:'M16 -22 Q34 -30 48 -36', mouth:'M-9 59 Q0 52 9 59', mouthFill:'none', blush:0, lines:0, sweat:0, anger:1, sparkle:0, dots:0 },
+  calm:    { closed:false, irisDx:0,  irisDy:0,  eyeSy:1,   browL:'M-48 -26 Q-34 -33 -16 -27', browR:'M16 -27 Q34 -33 48 -26', mouth:'M-7 55 Q0 59 7 55', mouthFill:'none', blush:0, lines:0, sweat:0, anger:0, sparkle:0, dots:0 },
+};
+const $ = (id) => document.getElementById(id);
+const MEM_KEY = 'jevkano_memory';
+function memGet() { try { return JSON.parse(localStorage.getItem(MEM_KEY) || '{}'); } catch { return {}; } }
+function memSet(m) { try { localStorage.setItem(MEM_KEY, JSON.stringify(m)); } catch {} }
+function memMark(episodeId, kind) { const m = memGet(); m.seen = m.seen || {}; m.seen[episodeId] = m.seen[episodeId] || {}; m.seen[episodeId][kind] = (m.seen[episodeId][kind] || 0) + 1; if (kind === 'perfect') m.perfect = true; memSet(m); }
+function episodeDone(episodeId) { const s = (memGet().seen || {})[episodeId]; return !!s && Object.keys(s).length > 0; }
+let cfg, S;
+
+const TIER_JA = ['弱', '中', '強'];
+function setFace(mood, label, { quiet = false, strong = false } = {}) {
+  const f = FACES[mood] || FACES.calm;
+  const img = cfg && cfg.faces && ((strong && cfg.faces[mood + '_strong']) || cfg.faces[mood]);
+  if (img) { $('facePhoto').src = img; $('facePhoto').style.display = ''; $('photoZones').style.display = ''; $('faceSvg').style.display = 'none'; }
+  else {
+    $('facePhoto').style.display = 'none'; $('photoZones').style.display = 'none'; $('faceSvg').style.display = '';
+    $('eyesOpen').setAttribute('opacity', f.closed ? 0 : 1); $('eyesClosed').setAttribute('opacity', f.closed ? 1 : 0);
+    $('eyeGL').setAttribute('transform', 'translate(-31 12) scale(1 ' + f.eyeSy + ')'); $('eyeGR').setAttribute('transform', 'translate(31 12) scale(1 ' + f.eyeSy + ')');
+    $('irisL').setAttribute('transform', 'translate(' + f.irisDx + ' ' + f.irisDy + ')'); $('irisR').setAttribute('transform', 'translate(' + f.irisDx + ' ' + f.irisDy + ')');
+    $('browL').setAttribute('d', f.browL); $('browR').setAttribute('d', f.browR);
+    $('mouth').setAttribute('d', f.mouth); $('mouth').setAttribute('fill', f.mouthFill);
+    $('blushL').setAttribute('opacity', f.blush); $('blushR').setAttribute('opacity', f.blush); $('blushLines').setAttribute('opacity', f.lines || 0);
+    $('sweat').setAttribute('opacity', f.sweat); $('anger').setAttribute('opacity', f.anger); $('sparkle').setAttribute('opacity', f.sparkle); $('dots').setAttribute('opacity', f.dots);
+  }
+  if (!quiet) { $('moodText').innerHTML = label || '&nbsp;'; const st = $('stage'); st.classList.remove('pop'); void st.offsetWidth; st.classList.add('pop'); }
+}
+function setAff(v) { S.affection = Math.max(0, Math.min(100, v)); $('affBar').style.width = S.affection + '%'; $('affNum').textContent = S.affection; }
+function add(cls, text) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.textContent = text; $('log').appendChild(d); scrollDown(); return d; }
+function meta(html) { const d = document.createElement('div'); d.className = 'meta dbg'; d.innerHTML = html; $('log').appendChild(d); scrollDown(); return d; }
+function scrollDown() { window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }); }
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sec = (ms) => (ms / 1000).toFixed(2) + ' s';
+const notice = (t) => { $('notice').textContent = t || ''; };
+const plain = (t) => String(t || '').replace(/<[a-z -]+>/g, '').replace(/\s{2,}/g, ' ').trim(); // 声用のタグを外す
+const mode = () => document.querySelector('input[name=mode]:checked').value;
+
+async function post(path, body) {
+  const r = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j;
+}
+
+// ---- ストップウォッチ（送った瞬間から数え、顔・一言・言葉・声が出た時刻を止める） ----
+const CLOCK_MAX = 6000, KEYS = ['Face', 'Sfx', 'Words', 'Voice'];
+const clock = { t0: 0, marks: {} };
+function clockStart() { clock.t0 = performance.now(); clock.marks = {}; for (const k of KEYS) { $('c' + k).textContent = '0.00 s'; $('c' + k).classList.add('run'); $('t' + k).style.width = '0%'; } tick(); }
+function tick() {
+  const el = performance.now() - clock.t0;
+  for (const k of KEYS) if (clock.marks[k] == null) { $('c' + k).textContent = sec(el); $('t' + k).style.width = Math.min(100, el / CLOCK_MAX * 100) + '%'; }
+  if (Object.keys(clock.marks).length < KEYS.length && el < 60000) requestAnimationFrame(tick);
+}
+function clockMark(k, ms) { clock.marks[k] = ms == null ? -1 : ms; $('c' + k).classList.remove('run'); if (ms == null) { $('c' + k).textContent = '—'; $('t' + k).style.width = '0%'; } else { $('c' + k).textContent = sec(ms); $('t' + k).style.width = Math.min(100, ms / CLOCK_MAX * 100) + '%'; } }
+
+// ---- 打っている途中: Jev が書きかけを読み、顔だけ黙って動く（数字は出さない・好感度は動かさない） ----
+let peekTimer = 0, peekSeq = 0, peekLast = '';
+function schedulePeek() {
+  if (mode() !== 'reflex' || !cfg.has.jev || S.busy) return;
+  clearTimeout(peekTimer);
+  peekTimer = setTimeout(async () => {
+    const text = $('input').value.trim();
+    if (text.length < 3 || text === peekLast) return;
+    peekLast = text;
+    const seq = ++peekSeq;
+    try {
+      const j = await post('/api/reflex', { history: S.history, line: text, affection: S.affection, playerName: S.playerName, heroineName: S.heroineName, topics: S.topics, episode: S.episode && S.episode.id });
+      if (seq !== peekSeq || S.busy) return;
+      setFace(j.mood, null, { quiet: true });
+    } catch (e) { /* 何もしない */ }
+  }, 350);
+}
+
+// ---- 音 ----
+let actx = null, nextAt = 0; // nextAt: 次の音を鳴らしてよい時刻（一言と台詞が重ならないよう共有）
+let outNode = null;
+function ctx() {
+  actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume();
+  if (!outNode) { // 声が小さいので持ち上げる。コンプレッサで割れを防ぐ
+    const gain = actx.createGain(); gain.gain.value = VOICE_GAIN;
+    const comp = actx.createDynamicsCompressor(); comp.threshold.value = -12; comp.knee.value = 20; comp.ratio.value = 6; comp.attack.value = 0.003; comp.release.value = 0.2;
+    gain.connect(comp); comp.connect(actx.destination); outNode = gain;
+  }
+  return actx;
+}
+const VOICE_GAIN = 2.6;
+/** サーバーから届く PCM16（モノラル）を、届いた断片から順に鳴らす。最初の音で onFirst */
+async function playPcm(r, onFirst) {
+  const ac = ctx(); const t0 = performance.now();
+  const rate = Number(r.headers.get('X-Sample-Rate')) || 24000;
+  const reader = r.body.getReader();
+  let carry = new Uint8Array(0), first = null, total = 0;
+  const MIN = rate * 2 * 0.15;
+  const play = (bytes) => {
+    const n = bytes.byteLength >> 1; if (!n) return;
+    const view = new DataView(bytes.buffer, bytes.byteOffset, n * 2);
+    const buf = ac.createBuffer(1, n, rate); const ch = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) ch[i] = view.getInt16(i * 2, true) / 32768;
+    const f = Math.min(72, n >> 1); for (let i = 0; i < f; i++) { const g = i / f; ch[i] *= g; ch[n - 1 - i] *= g; } // つなぎ目のプチ音を消す（3ms のフェード）
+    const src = ac.createBufferSource(); src.buffer = buf; src.connect(outNode);
+    const at = Math.max(ac.currentTime + 0.02, nextAt); src.start(at); nextAt = at + buf.duration;
+    if (first == null) { first = Math.round(performance.now() - t0); onFirst && onFirst(first); }
+  };
+  while (true) {
+    const { done, value } = await reader.read();
+    if (value) { const m = new Uint8Array(carry.length + value.length); m.set(carry); m.set(value, carry.length); carry = m; total += value.length; }
+    if (done || carry.length >= MIN) { const usable = carry.length & ~1; if (usable) { play(carry.subarray(0, usable)); carry = carry.slice(usable); } }
+    if (done) break;
+  }
+  return { msFirst: first, ms: Math.round(performance.now() - t0), bytes: total, seconds: +(total / 2 / rate).toFixed(2) };
+}
+function pickJaVoice() { const vs = speechSynthesis.getVoices(); return vs.find((v) => /ja/i.test(v.lang) && /Nanami|Haruka|Ayumi|Kyoko|O-ren|Female|女/i.test(v.name)) || vs.find((v) => /ja/i.test(v.lang)) || null; }
+let useBrowserVoice = false; try { useBrowserVoice = localStorage.getItem('jevkano_browser_voice') === '1'; } catch {}
+const BROWSER_STYLE = { joy: [1.25, 1.1], shy: [1.2, 1.15], puzzled: [1.05, .9], upset: [.85, .95], calm: [1.05, 1] };
+function speakBrowser(text, mood) {
+  if (!('speechSynthesis' in window)) throw new Error('この環境に合成音声がありません');
+  const u = new SpeechSynthesisUtterance(text.replace(/……/g, '、')); u.lang = 'ja-JP'; const v = pickJaVoice(); if (v) u.voice = v;
+  const [p, r] = BROWSER_STYLE[mood] || BROWSER_STYLE.calm; u.pitch = p; u.rate = r;
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+  return { kind: 'browser', voice: v ? v.name : '(既定)', pitch: p, rate: r };
+}
+/** 反射の一言（場合 × 本音の固定音声）。起動時に全部メモリへ読み込み、Jev が返った瞬間に鳴らす */
+const sfxBuf = {}; // 'action/shy' → AudioBuffer
+let sfxTotal = 0;
+async function prefetchSfx() {
+  if (!cfg.has.tts) return;
+  const st = await fetch('/api/sfx-status?heroine=' + encodeURIComponent(S.heroineName || '')).then((r) => r.json()).catch(() => ({ total: 0, ready: [] }));
+  sfxTotal = st.total;
+  for (const key of st.ready) {
+    if (sfxBuf[key]) continue;
+    try {
+      const r = await fetch('/api/sfx/' + key + '?heroine=' + encodeURIComponent(S.heroineName || '')); if (!r.ok) continue;
+      const rate = Number(r.headers.get('X-Sample-Rate')) || 24000; const bytes = new Uint8Array(await r.arrayBuffer());
+      const n = bytes.byteLength >> 1; const ac = ctx(); const buf = ac.createBuffer(1, n, rate); const ch = buf.getChannelData(0); const view = new DataView(bytes.buffer);
+      for (let i = 0; i < n; i++) ch[i] = view.getInt16(i * 2, true) / 32768;
+      sfxBuf[key] = buf;
+    } catch (e) { /* 次回 */ }
+  }
+  const have = Object.keys(sfxBuf).length;
+  $('sfxState').textContent = have >= sfxTotal && sfxTotal > 0 ? '' : '一言の音声 ' + have + '/' + sfxTotal + ' 準備中';
+  if (have < sfxTotal) setTimeout(prefetchSfx, 6000);
+}
+async function interject(kind, mood, tier, onFirst) {
+  const key = kind + '/' + mood + '/' + tier;
+  if (sfxBuf[key]) { // メモリから即
+    const ac = ctx(); const src = ac.createBufferSource(); src.buffer = sfxBuf[key]; src.connect(outNode);
+    const at = Math.max(ac.currentTime + 0.01, nextAt); src.start(at); nextAt = at + sfxBuf[key].duration; onFirst && onFirst(0);
+    return { kind: 'gemini-sfx-memory', seconds: +sfxBuf[key].duration.toFixed(2) };
+  }
+  try {
+    const r = await fetch('/api/sfx/' + key + '?heroine=' + encodeURIComponent(S.heroineName || '')); if (!r.ok) throw new Error(String(r.status));
+    return { kind: 'gemini-sfx', ...(await playPcm(r, onFirst)) };
+  } catch (e) {
+    if (!useBrowserVoice) return { kind: 'none' };
+    const o = speakBrowser(cfg.interjections[kind][mood][tier], mood); onFirst && onFirst(0); return { ...o, kind: 'browser-fallback' };
+  }
+}
+/** 台詞の声（本音の色 × 場合 × 強さで読む） */
+async function speak(text, mood, onFirst, extra = {}) {
+  if (cfg.has.tts) {
+    try {
+      const r = await fetch('/api/voice/stream', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, mood, heroineName: S.heroineName, ...extra }) });
+      if (!r.ok) { let j = {}; try { j = await r.json(); } catch {} throw new Error(j.error || r.status); }
+      notice('');
+      return { kind: 'gemini-stream', model: r.headers.get('X-TTS-Model') || '', ...(await playPcm(r, onFirst)) };
+    } catch (e) {
+      const m = e.message.match(/retry in ([^ )]+)/i);
+      if (!useBrowserVoice) { notice('声: ' + (/per day|per minute|429/.test(e.message) ? '今日の上限に達しました' + (m ? '（あと ' + m[1] + '）' : '') : '届きません') + '。字幕だけで続けます（「？」で代用の声を選べます）'); return { kind: 'none', error: e.message }; }
+      notice('声: ' + (/per day|per minute|429/.test(e.message) ? '今日の上限に達したので' : '届かないので') + 'ブラウザの声で代用中');
+      const o = speakBrowser(plain(text), mood); onFirst && onFirst(0); return { ...o, kind: 'browser-fallback', error: e.message };
+    }
+  }
+  if (!useBrowserVoice) return { kind: 'none' };
+  const o = speakBrowser(plain(text), mood); onFirst && onFirst(0); return o;
+}
+
+/** 決まった台詞（冒頭・結末）を、キャッシュ済みの音声で読む。失敗したらブラウザの声 */
+async function speakFixed(text, mood) {
+  if (!$('voice').checked) return;
+  try {
+    if (cfg.has.tts || cfg.sfxReady) {
+      const r = await fetch('/api/fixed?text=' + encodeURIComponent(text) + '&mood=' + mood + '&heroine=' + encodeURIComponent(S.heroineName || ''));
+      if (r.ok) { await playPcm(r, null); return; }
+    }
+    if (useBrowserVoice) speakBrowser(text, mood);
+  } catch (e) { if (useBrowserVoice) { try { speakBrowser(text, mood); } catch {} } }
+}
+function reset() {
+  S = { turn: 0, history: [], affection: cfg.scenario.startAffection, turns: [], lastSay: '', playerName: (S && S.playerName) || 'あなた', heroineName: (S && S.heroineName) || cfg.scenario.persona['名前'], episode: (S && S.episode) || null };
+  $('name').textContent = S.heroineName;
+  $('log').innerHTML = '';
+  setAff(S.affection);
+  setFace('calm', '');
+  const ep = S.episode || (cfg.scenario.episodes || [])[0] || { opening: cfg.scenario.opening, suggestions: cfg.scenario.suggestions };
+  add('her', ep.opening);
+  S.history.push({ role: 'assistant', text: ep.opening });
+  setFace('shy', null, { quiet: true });
+  speakFixed(ep.opening, 'shy');
+  S.strikes = 0; S.chest = 0; S.over = false; S.topics = []; S.bandsDone = []; S.probe = false; S.lastInitiativeTurn = -9;
+  $('topics').textContent = '';
+  turnsLeft();
+  chips();
+  for (const k of KEYS) { $('c' + k).textContent = '—'; $('c' + k).classList.remove('run'); $('t' + k).style.width = '0%'; }
+  $('ending').style.display = 'none';
+  $('input').focus();
+}
+function turnsLeft() { const n = cfg.scenario.maxTurns - S.turn; $('turnsLeft').textContent = n > 0 ? '残り ' + n : '終わり'; }
+function chips() {
+  const c = $('chips'); c.innerHTML = '';
+  const sug = (S.episode && S.episode.suggestions) || cfg.scenario.suggestions; const list = sug[S.turn % sug.length] || [];
+  const l = document.createElement('span'); l.className = 'lbl'; l.textContent = '言う:'; c.appendChild(l);
+  for (const t of list) { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.onclick = () => { $('input').value = t; $('input').focus(); schedulePeek(); }; c.appendChild(b); }
+}
+// 顔の部位 → 行為
+for (const z of document.querySelectorAll('.zone, .pz')) {
+  z.addEventListener('mouseenter', () => { $('zoneTip').textContent = z.dataset.label; $('zoneTip').classList.add('on'); });
+  z.addEventListener('mouseleave', () => $('zoneTip').classList.remove('on'));
+  z.addEventListener('click', () => { const act = (cfg.scenario.actions || []).find((x) => x.id === z.dataset.act); if (act) turn('', act); });
+}
+
+async function turn(line, action) {
+  if ((!line.trim() && !action) || S.busy || S.over) return;
+  S.busy = true; $('send').disabled = true; clearTimeout(peekTimer); peekSeq++;
+  const m = mode();
+  const shown = action ? '（' + action.label + '）' : line;
+  add('user' + (action ? ' act' : ''), shown);
+  S.history.push({ role: 'user', text: shown });
+  const hist = S.history.slice(0, -1);
+  const pending = add('her pending', m === 'reflex' ? '……' : '（考え中……）');
+  clockStart(); const t0 = clock.t0;
+  const rec = { turn: S.turn + 1, mode: m, line: shown, action: action ? action.id : null, affectionBefore: S.affection, llmModel: cfg.llmModel };
+  const body = { history: hist, line, action: action ? action.id : undefined, affection: S.affection, playerName: S.playerName, heroineName: S.heroineName, topics: S.topics, probe: S.probe, episode: S.episode && S.episode.id };
+  rec.probe = S.probe; S.probe = false;
+  let j = null, w = null;
+
+  if (m === 'reflex' && cfg.has.jev) {
+    // 1. 反射: 本音が決まる → 顔・好感度・一言。ここまで LLM は待たない
+    try {
+      j = await post('/api/reflex', body); rec.jev = j; rec.tFace = Math.round(performance.now() - t0); clockMark('Face', rec.tFace);
+      setFace(j.mood, '本音: <b>' + MOOD_JA[j.mood] + '</b> ' + TIER_JA[j.tier ?? 0] + '（反射 ' + sec(rec.tFace) + '）', { strong: (j.tier ?? 0) === 2 });
+      setAff(S.affection + j.deltaRound * (action ? (cfg.scenario.actionStep || cfg.scenario.affectionStep || 1) : (cfg.scenario.affectionStep || 1)));
+      if (j.topic && !S.topics.includes(j.topic)) { S.topics.push(j.topic); rec.topicOpened = j.topic; setAff(S.affection + (cfg.scenario.topicBonus || 0)); $('topics').textContent = S.topics.map((t) => TOPIC_JA[t] || t).join('・'); toast('話題が開いた: ' + (TOPIC_JA[j.topic] || j.topic)); }
+      const kind = action ? 'action' : 'line';
+      let tier = j.tier ?? 0;
+      const bank = cfg.interjections[kind][j.mood] || [];
+      // 同じ一言を続けて言わない（前と同じなら隣の段階の文言に）
+      if (bank[tier] && bank[tier] === S.lastSay) { const alt = [tier + 1, tier - 1].find((t) => bank[t] && bank[t] !== S.lastSay); if (alt != null) tier = alt; }
+      rec.tier = tier;
+      const say = bank[tier] || '';
+      if (say) { pending.innerHTML = '<span class="say">' + esc(say) + '</span>'; pending.className = 'msg her'; pending.title = '本音 ' + MOOD_JA[j.mood] + ' ' + Math.round((j.moodProbs[j.mood] || 0) * 100) + '% → ' + TIER_JA[tier]; S.lastSay = say; rec.say = say; }
+      if (say && $('voice').checked) interject(kind, j.mood, tier, () => { rec.tSfx = Math.round(performance.now() - t0); clockMark('Sfx', rec.tSfx); }).then((o) => { rec.sfx = o; }).catch((e) => { rec.sfxError = e.message; clockMark('Sfx', null); });
+      else clockMark('Sfx', null);
+    } catch (e) { rec.jevError = e.message; clockMark('Face', null); clockMark('Sfx', null); }
+  } else { $('cFace').textContent = '（言葉と一緒）'; clockMark('Sfx', null); }
+
+  // 2. 言葉: 反射の本音を渡して、同じ人物の中でそろえる
+  try { w = await post('/api/words', { ...body, mood: j ? j.mood : undefined, said: rec.say || '' });
+    if (rec.say && w && w.line) w.line = w.line.replace(/^(?:[…・、。\s]*(?:あ|え|えっ|はい|ええ|うん)[、。…\s]+)+/u, ''); rec.llm = w; rec.tWords = Math.round(performance.now() - t0); clockMark('Words', rec.tWords); notice(''); }
+  catch (e) {
+    rec.llmError = e.message; clockMark('Words', null);
+    // 黙って止まらない: 本音に合う予備の台詞
+    const fm = j ? j.mood : 'calm'; const bank = (cfg.fallbackLines || {})[fm] || ['……はい。'];
+    w = { line: bank[S.turn % bank.length], mood: fm, delta: 0, hurt: false, fallback: true }; rec.llm = w; rec.tWords = Math.round(performance.now() - t0);
+    notice('言葉: Claude が使えないので予備の台詞（' + e.message.slice(0, 40) + '）');
+  }
+  const lineVoice = w ? w.line : '';
+  const lineOut = w ? plain(w.line) : '';
+  // 相槌の後ろに台詞を足す（同じ吹き出し）
+  pending.className = 'msg her';
+  if (rec.say) { const sp = document.createElement('span'); sp.className = 'line'; sp.textContent = lineOut; pending.appendChild(sp); }
+  else pending.textContent = lineOut;
+  scrollDown();
+  S.history.push({ role: 'assistant', text: (rec.say ? rec.say + '\n' : '') + lineOut });
+  if (!j && w) { rec.tFace = rec.tWords; clockMark('Face', rec.tFace); setFace(w.mood, '顔: <b class="llm">' + MOOD_JA[w.mood] + '</b>（LLM と一緒に ' + sec(rec.tFace) + '）'); setAff(S.affection + w.delta * (cfg.scenario.affectionStep || 1)); }
+
+  const tl = () => '<b>顔</b> ' + (rec.tFace != null ? sec(rec.tFace) : '—') + (rec.tSfx != null ? ' ・ <b>一言</b> ' + sec(rec.tSfx) : '') + ' ・ <b>言葉</b> ' + (rec.tWords != null ? sec(rec.tWords) : '—') + (rec.tVoice != null ? ' ・ <b>声</b> ' + sec(rec.tVoice) : rec.ttsError ? ' ・ <b>声</b> ×（' + rec.ttsError + '）' : '') + (j && j.hurt != null && j.hurt >= 0.5 ? ' <span class="tag bad">' + (action ? '嫌がった' : '傷つけた') + '</span>' : '');
+  const metaEl = meta(tl());
+
+  // 終了判定はここで（声を待たない）。帰る: 嫌がることを 2 回続けた／触れるべきでない場所に 2 回
+  S.turn++;
+  const hurtNow = j && j.hurt != null && j.hurt >= 0.8;
+  S.strikes = hurtNow ? (S.strikes || 0) + 1 : 0;
+  if (action && action.id === 'chest') S.chest = (S.chest || 0) + 1;
+  const endKind = (S.strikes >= 2 || S.chest >= 2) ? 'leave' : S.affection < 40 ? 'bad' : S.turn >= cfg.scenario.maxTurns ? 'auto' : null;
+  if (endKind) { S.over = true; } else { chips(); S.busy = false; $('send').disabled = false; $('input').value = ''; peekLast = ''; $('input').focus(); }
+  // 彼女から振る（親しさの節目を初めて超えたとき／60 以上で時々。続けては振らない）
+  const ini = cfg.scenario.initiative || {};
+  const band = (ini.bands || []).find((b) => S.affection >= b && !S.bandsDone.includes(b));
+  const wantInitiative = !endKind && S.turn < cfg.scenario.maxTurns && S.turn - S.lastInitiativeTurn >= 2 && (band != null || (S.affection >= (ini.minAffection || 60) && Math.random() < (ini.chance || 0)));
+  if (band != null) S.bandsDone.push(band);
+  if (wantInitiative) heroineInitiative(rec);
+  // 3. 声: 台詞を本音の色で読む
+  if ($('voice').checked && w && lineVoice) {
+    try {
+      rec.tts = await speak(lineVoice, j ? j.mood : w.mood, () => { rec.tVoice = Math.round(performance.now() - t0); clockMark('Voice', rec.tVoice); }, { kind: action ? 'action' : 'line', intensity: j ? (j.moodProbs[j.mood] || null) : null, affection: S.affection });
+      if (rec.tVoice == null) { rec.tVoice = Math.round(performance.now() - t0); clockMark('Voice', rec.tVoice); }
+    } catch (e) { rec.ttsError = e.message; clockMark('Voice', null); }
+    metaEl.innerHTML = tl();
+  } else clockMark('Voice', null);
+
+  rec.affectionAfter = S.affection;
+  S.turns.push(rec);
+  fetch('/api/log', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rec) }).catch(() => {});
+
+  turnsLeft();
+  if (endKind) ending(endKind === 'auto' ? undefined : endKind);
+}
+
+async function heroineInitiative(prevRec) {
+  S.lastInitiativeTurn = S.turn;
+  const pending = add('her pending', '……');
+  try {
+    const w = await post('/api/words', { history: S.history, line: '', initiative: true, affection: S.affection, playerName: S.playerName, heroineName: S.heroineName, topics: S.topics, episode: S.episode && S.episode.id });
+    const text = plain(w.line);
+    pending.className = 'msg her'; pending.textContent = text;
+    S.history.push({ role: 'assistant', text: text });
+    S.probe = true; prevRec.initiative = { line: text, mood: w.mood };
+    setFace(w.mood, null, { quiet: true });
+    if ($('voice').checked && w.line) { try { await speak(w.line, w.mood, null, { kind: 'line', affection: S.affection }); } catch (e) { /* 声は無くても進む */ } }
+  } catch (e) { pending.remove(); }
+}
+function ending(force) {
+  const e = cfg.scenario.endings;
+  const kind = force || (e.perfect && S.affection >= e.perfect.min ? 'perfect' : S.affection >= e.good.min ? 'good' : S.affection >= e.normal.min ? 'normal' : 'bad');
+  $('ending').classList.toggle('perfect', kind === 'perfect');
+  if (kind === 'perfect') setFace('joy', '', { strong: true });
+  S.over = true; S.busy = true; $('send').disabled = true;
+  if (kind === 'leave') { add('her', e.leave.text); S.history.push({ role: 'assistant', text: e.leave.text }); }
+  if (S.episode) memMark(S.episode.id, kind);
+  $('endTitle').textContent = (S.episode ? S.episode.title + '：' : '') + { perfect:'パーフェクト', good:'達成', normal:'ふつう', bad:'失敗', leave:'失敗（帰ってしまった）' }[kind] + (document.body.classList.contains('debug') ? '（好感度 ' + S.affection + '）' : '');
+  $('endText').textContent = e[kind].text;
+  speakFixed(e[kind].text, kind === 'perfect' || kind === 'good' ? 'joy' : kind === 'normal' ? 'calm' : 'upset');
+  const t = S.turns, avg = (k) => { const xs = t.map((r) => r[k]).filter((x) => x != null); return xs.length ? sec(xs.reduce((a, b) => a + b, 0) / xs.length) : '—'; };
+  const eps = (cfg.scenario.episodes || []); const mem = memGet(); const seenN = eps.filter((e) => episodeDone(e.id)).length; const openN = eps.filter((e) => !e.locked || mem.perfect).length;
+  $('endNote').textContent = '開いた話題: ' + (S.topics.length ? S.topics.map((t) => TOPIC_JA[t] || t).join('・') : 'なし') + ' ／ 見たはじまり ' + seenN + '/' + openN + (kind === 'perfect' && eps.some((e) => e.locked) ? ' ／ 新しいはじまりが開いた' : seenN < openN ? ' ／ まだ見ていないはじまりがある' : '');
+  $('endStats').textContent = (document.body.classList.contains('debug') ? '' : '') + '顔の平均 ' + avg('tFace') + (t.some((r) => r.tSfx != null) ? ' ・ 一言の平均 ' + avg('tSfx') : '') + ' ・ 言葉の平均 ' + avg('tWords') + (t.some((r) => r.tVoice != null) ? ' ・ 声の平均 ' + avg('tVoice') : '');
+  $('ending').style.display = 'flex';
+}
+
+$('form').addEventListener('submit', (ev) => { ev.preventDefault(); turn($('input').value); });
+$('input').addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); turn($('input').value); } });
+$('input').addEventListener('input', schedulePeek);
+$('again').onclick = () => { $('ending').style.display = 'none'; $('title').style.display = 'flex'; if (typeof window.__renderEpisodes === 'function') window.__renderEpisodes(); };
+
+function hintText() {
+  return mode() === 'reflex'
+    ? '反射モード: 送る（触れる）と約 0.2〜0.5 秒で本音が顔と一言に出ます。一言と表情の強さは Jev の確率で 3 段階（弱・中・強）。言葉は数秒後、声は本音の色で読みます。打っている途中も顔だけ黙って動きます。'
+    : 'LLM だけモード: 言葉ができるまで顔も動きません。数秒の「間」を体で比べてください。';
+}
+
+fetch('/api/config').then((r) => r.json()).then((c) => {
+  cfg = c;
+  $('name').textContent = c.scenario.persona['名前'];
+  const voiceLabel = c.has.tts ? c.ttsModel : ('speechSynthesis' in window ? 'ブラウザの合成音声（仮）' : 'なし');
+  $('models').textContent = '反射 ' + (c.has.jev ? 'jev-latest' : 'なし') + ' ／ 言葉 ' + (c.has.llm ? c.llmModel : 'なし') + ' ／ 声 ' + voiceLabel;
+  if (!c.has.tts && !('speechSynthesis' in window)) { $('voice').checked = false; $('voice').disabled = true; }
+  if (!c.has.jev) { document.querySelector('input[value=llm]').checked = true; document.querySelector('input[value=reflex]').disabled = true; }
+  $('foot').innerHTML = '人物も場面も架空です。台詞は判定のため TypeSafe AI（Jev）と Anthropic（Claude）へ、声を Gemini で出すときは Google へ送られます。打っている途中の文も Jev に送られます。各ターンの計測は <code>_out/turns.jsonl</code> に残ります。' + (c.faces && Object.keys(c.faces).length ? ' 顔は <code>public/faces/</code> の画像。' : ' 顔の画像を <code>public/faces/{joy,shy,puzzled,upset,calm}.png</code> に置くと差し替わります。');
+  if ('speechSynthesis' in window) speechSynthesis.getVoices();
+  // デバッグ表示（?debug=1 か チェック）
+  const dbg = new URLSearchParams(location.search).get('debug') === '1';
+  const setDbg = (on) => { document.body.classList.toggle('debug', on); $('debugToggle').checked = on; $('debugToggle2').checked = on; };
+  setDbg(dbg);
+  $('debugToggle').addEventListener('change', () => setDbg($('debugToggle').checked));
+  $('debugToggle2').addEventListener('change', () => setDbg($('debugToggle2').checked));
+  // 遊び方
+  const hb = $('helpBody'); hb.innerHTML = '';
+  if (c.scenario.goal) { const dt = document.createElement('dt'); dt.textContent = '目標'; const dd = document.createElement('dd'); dd.textContent = c.scenario.goal; hb.appendChild(dt); hb.appendChild(dd); }
+  for (const [k, v] of Object.entries(c.scenario.rules || {})) { const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; hb.appendChild(dt); hb.appendChild(dd); }
+  $('browserVoiceToggle').checked = useBrowserVoice;
+  $('browserVoiceToggle').addEventListener('change', () => { useBrowserVoice = $('browserVoiceToggle').checked; try { localStorage.setItem('jevkano_browser_voice', useBrowserVoice ? '1' : '0'); } catch {} });
+  $('helpBtn').onclick = () => { $('help').style.display = 'flex'; };
+  $('helpClose').onclick = () => { $('help').style.display = 'none'; };
+  // 導入画面
+  if (c.scenario.title) { $('appTitle').textContent = c.scenario.title; $('titleName').textContent = c.scenario.title; document.title = c.scenario.title; }
+  if (c.scenario.subtitle) $('titleSub').textContent = c.scenario.subtitle;
+  const sel = $('heroineName'); if ((c.scenario.names || []).length <= 1) { sel.style.display = 'none'; document.querySelector('label[for=heroineName]').textContent = '彼女: ' + (c.scenario.names || [c.scenario.persona['名前']])[0]; }
+  for (const n of (c.scenario.names || [c.scenario.persona['名前']])) { const o = document.createElement('option'); o.value = n; const v = (c.voices || {})[n]; o.textContent = n + (v && v.note ? '（声: ' + v.note.replace(/^[A-Z]: /, '') + '）' : ''); sel.appendChild(o); }
+  const epSel = $('episode');
+  const renderEpisodes = () => {
+    epSel.innerHTML = ''; const mem = memGet();
+    const auto = document.createElement('option'); auto.value = ''; auto.textContent = 'まだ見ていないものから'; epSel.appendChild(auto);
+    for (const ep of (c.scenario.episodes || [])) { const o = document.createElement('option'); o.value = ep.id; const locked = ep.locked && !mem.perfect; o.disabled = !!locked; o.textContent = (locked ? '？？？（パーフェクトで開く）' : ep.title) + (episodeDone(ep.id) ? ' ✓' : ''); epSel.appendChild(o); }
+  };
+  renderEpisodes(); window.__renderEpisodes = renderEpisodes;
+  const pickEpisode = () => { const eps = (c.scenario.episodes || []); const mem = memGet(); if (epSel.value) return eps.find((e) => e.id === epSel.value); const open = eps.filter((e) => !e.locked || mem.perfect); return open.find((e) => !episodeDone(e.id)) || open[Math.floor(Math.random() * open.length)] || eps[0]; };
+  const renderIntro = () => { $('titleIntro').textContent = (c.scenario.intro || '').replace(/\{name\}/g, sel.value); };
+  sel.addEventListener('change', renderIntro); renderIntro();
+  $('titleGoal').textContent = '目標: ' + (c.scenario.goal || '') + ' 失敗: 親しさが下がりきる、または彼女が帰ってしまう。';
+  try { const saved = localStorage.getItem('reflex_galge_player'); if (saved) $('playerName').value = saved; } catch {}
+  S = null;
+  $('startBtn').onclick = () => {
+    const pn = $('playerName').value.trim() || 'あなた';
+    try { localStorage.setItem('reflex_galge_player', pn); } catch {}
+    for (const k of Object.keys(sfxBuf)) delete sfxBuf[k];
+    S = { playerName: pn, heroineName: sel.value, episode: pickEpisode() };
+    $('title').style.display = 'none';
+    reset();
+    prefetchSfx();
+  };
+  $('playerName').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); $('startBtn').click(); } });
+
+});
+</script>
+</body>
+</html>

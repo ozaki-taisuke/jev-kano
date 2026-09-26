@@ -1,0 +1,24 @@
+{
+  "name": "jev-kano",
+  "version": "0.1.0",
+  "private": true,
+  "description": "#Jevカノ — 反射（Jev）→ 一言 → 言葉（LLM）→ 声（TTS）。顔が先に動いて、言葉はあとから来るギャルゲー。",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "bench": "node bench.mjs",
+    "sfx:bundle": "node -e \"const fs=require('fs');fs.mkdirSync('public/sfx',{recursive:true});for(const f of fs.readdirSync('_out/sfx'))if(/_[0-9a-f]{8}.pcm$/.test(f))fs.copyFileSync('_out/sfx/'+f,'public/sfx/'+f);console.log('bundled')\"",
+    "test": "node smoke.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ozaki-taisuke/jev-kano.git"
+  },
+  "license": "MIT"
+}
