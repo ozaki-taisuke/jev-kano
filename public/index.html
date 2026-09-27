@@ -676,7 +676,7 @@ async function turn(line, action) {
     // 1. 反射: 本音が決まる → 顔・好感度・一言。ここまで LLM は待たない
     try {
       j = await post('/api/reflex', body); rec.jev = j; rec.tFace = Math.round(performance.now() - t0); clockMark('Face', rec.tFace);
-      setFace(j.mood, '本音: <b>' + MOOD_JA[j.mood] + '</b> ' + TIER_JA[j.tier ?? 0] + '（反射 ' + sec(rec.tFace) + '）', { tier: j.tier ?? 0 });
+      setFace(j.mood, '本音: <b>' + MOOD_JA[j.mood] + '</b> ' + TIER_JA[j.tier ?? 0] + '（反射 ' + sec(rec.tFace) + '）' + (j.attitude ? ' 返事の態度: ' + j.attitude.attitude + ' ' + Math.round((j.attitude.probs[j.attitude.attitude] || 0) * 100) + '%' : '') + (j.forced ? ' [' + j.forced + ']' : ''), { tier: j.tier ?? 0 });
       setAff(S.affection + j.deltaRound * (action ? (cfg.scenario.actionStep || cfg.scenario.affectionStep || 1) : (cfg.scenario.affectionStep || 1)));
       if (j.topic && !S.topics.includes(j.topic)) { S.topics.push(j.topic); rec.topicOpened = j.topic; setAff(S.affection + (cfg.scenario.topicBonus || 0)); $('topics').textContent = S.topics.map((t) => TOPIC_JA[t] || t).join('・'); $('topicsStat').style.display = ''; toast('話題が開いた: ' + (TOPIC_JA[j.topic] || j.topic)); }
       const kind = action ? 'action' : 'line';
@@ -693,7 +693,7 @@ async function turn(line, action) {
   } else { $('cFace').textContent = '（言葉と一緒）'; clockMark('Sfx', null); }
 
   // 2. 言葉: 反射の本音を渡して、同じ人物の中でそろえる
-  try { w = await post('/api/words', { ...body, mood: j ? j.mood : undefined, said: rec.say || '' });
+  try { w = await post('/api/words', { ...body, mood: j ? j.mood : undefined, said: rec.say || '', attitude: j && j.attitude ? j.attitude.attitude : undefined });
     if (rec.say && w && w.line) w.line = w.line.replace(/^(?:[…・、。\s]*(?:あ|え|えっ|はい|ええ|うん)[、。…\s]+)+/u, ''); rec.llm = w; rec.tWords = Math.round(performance.now() - t0); clockMark('Words', rec.tWords); notice(''); }
   catch (e) {
     rec.llmError = e.message; clockMark('Words', null);
