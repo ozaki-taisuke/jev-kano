@@ -24,11 +24,11 @@
   body.ep-blackout .bg { filter:brightness(.38) saturate(.6) hue-rotate(-20deg); }
   body.ep-wings .bg { filter:brightness(.45) saturate(.7) hue-rotate(20deg) contrast(1.1); }
   /* 上の帯 */
-  .hud { position:fixed; left:0; right:0; top:0; z-index:6; display:flex; align-items:center; gap:10px; padding:8px 14px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.5); pointer-events:none; }
+  .hud { position:fixed; left:0; right:0; top:0; z-index:6; display:flex; flex-wrap:wrap; row-gap:4px; align-items:center; gap:10px; padding:8px 14px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.5); pointer-events:none; }
   .hud > * { pointer-events:auto; white-space:nowrap; }
   @media (max-width:900px) { .hud { gap:6px; padding:6px 8px; } .hud .gauge .bar { width:70px; } .hud .stat, .hud button, .hud label, .hud .gauge { padding-left:8px; padding-right:8px; } }
   @media (max-width:600px) { .hud { flex-wrap:wrap; row-gap:4px; } .hud .mini { display:none; } .hud .sp { display:none; } .hud .gauge .bar { width:56px; } .hud .stat, .hud button, .hud label, .hud .gauge { font-size:11px; padding:3px 8px; } .clock { width:200px; top:auto; bottom:calc(var(--win) + 6px); right:6px; } }
-  .hud .mini { height:34px; width:auto; filter:drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+  .hud .mini { height:34px; width:auto; --sw1:22; --sw2:10; filter:drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
   .hud .sp { flex:1; }
   .hud .gauge { display:flex; align-items:center; gap:8px; font-size:12px; background:rgba(30,25,40,.45); border:1px solid rgba(255,255,255,.25); border-radius:999px; padding:4px 12px 4px 10px; backdrop-filter:blur(6px); }
   .hud .gauge .bar { width:110px; height:8px; background:rgba(255,255,255,.25); border-radius:6px; overflow:hidden; }
@@ -156,6 +156,22 @@
 </head>
 <body class="on-title">
 <div class="bg" id="bg"></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="gJev" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe6ff"/><stop offset=".5" stop-color="#63a9ea"/><stop offset="1" stop-color="#2d6fb3"/></linearGradient>
+      <linearGradient id="gKano" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd39a"/><stop offset=".5" stop-color="#ff8c5a"/><stop offset="1" stop-color="#e64f74"/></linearGradient>
+      <g id="logoText" font-family="'Zen Maru Gothic','Hiragino Maru Gothic ProN','Yu Gothic UI',sans-serif" font-weight="900" font-size="128" text-anchor="middle" transform="rotate(-2.5 320 120)">
+        <text x="320" y="150" stroke="#2a2d3f" style="stroke-width:var(--sw1,30)" stroke-linejoin="round" fill="none">#Jevカノ</text>
+        <text x="320" y="150" stroke="#fff" style="stroke-width:var(--sw2,16)" stroke-linejoin="round" fill="none">#Jevカノ</text>
+        <text x="320" y="150"><tspan fill="url(#gJev)">#Jev</tspan><tspan fill="url(#gKano)">カノ</tspan></text>
+        <g fill="#fff" stroke="#2a2d3f" stroke-width="3" stroke-linejoin="round">
+          <path d="M556 42 l6 16 16 6 -16 6 -6 16 -6 -16 -16 -6 16 -6 Z"/>
+          <path d="M96 150 l4 11 11 4 -11 4 -4 11 -4 -11 -11 -4 11 -4 Z"/>
+        </g>
+        <path d="M596 108 c-6 -10 -20 -4 -14 8 c3 6 14 14 14 14 s11 -8 14 -14 c6 -12 -8 -18 -14 -8 Z" fill="#ff6f91" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
+      </g>
+    </defs>
+</svg>
 
 <div class="hud">
   <svg class="mini" viewBox="0 0 640 200" aria-hidden="true"><use href="#logoText"/></svg>
@@ -271,6 +287,11 @@
   <div class="log" id="log"></div>
   <button type="button" class="close" id="backlogClose">閉じる</button>
 </div></div>
+<div class="modal" id="quit"><div class="box" style="max-width:420px;text-align:center">
+  <h3>タイトルに戻りますか？</h3>
+  <p style="margin:6px 0 0;color:var(--sub);font-size:13px;line-height:1.7">今回の分は残りません（セーブは次の版で）。</p>
+  <div style="display:flex;gap:10px;justify-content:center;margin-top:14px"><button type="button" class="close" id="quitYes" style="margin:0">戻る</button><button type="button" class="close" id="quitNo" style="margin:0;background:var(--chip);color:var(--ink);border:1px solid var(--line)">つづける</button></div>
+</div></div>
 <div class="modal" id="help"><div class="box">
   <h3>遊び方</h3>
   <dl id="helpBody"></dl>
@@ -280,23 +301,7 @@
 </div></div>
 
 <div class="title" id="title">
-  <svg class="logo" viewBox="0 0 640 200" role="img" aria-label="#Jevカノ">
-    <defs>
-      <linearGradient id="gJev" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe6ff"/><stop offset=".5" stop-color="#63a9ea"/><stop offset="1" stop-color="#2d6fb3"/></linearGradient>
-      <linearGradient id="gKano" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd39a"/><stop offset=".5" stop-color="#ff8c5a"/><stop offset="1" stop-color="#e64f74"/></linearGradient>
-      <g id="logoText" font-family="'Zen Maru Gothic','Hiragino Maru Gothic ProN','Yu Gothic UI',sans-serif" font-weight="900" font-size="128" text-anchor="middle" transform="rotate(-2.5 320 120)">
-        <text x="320" y="150" stroke="#2a2d3f" stroke-width="30" stroke-linejoin="round" fill="none">#Jevカノ</text>
-        <text x="320" y="150" stroke="#fff" stroke-width="16" stroke-linejoin="round" fill="none">#Jevカノ</text>
-        <text x="320" y="150"><tspan fill="url(#gJev)">#Jev</tspan><tspan fill="url(#gKano)">カノ</tspan></text>
-        <g fill="#fff" stroke="#2a2d3f" stroke-width="3" stroke-linejoin="round">
-          <path d="M556 42 l6 16 16 6 -16 6 -6 16 -6 -16 -16 -6 16 -6 Z"/>
-          <path d="M96 150 l4 11 11 4 -11 4 -4 11 -4 -11 -11 -4 11 -4 Z"/>
-        </g>
-        <path d="M596 108 c-6 -10 -20 -4 -14 8 c3 6 14 14 14 14 s11 -8 14 -14 c6 -12 -8 -18 -14 -8 Z" fill="#ff6f91" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
-      </g>
-    </defs>
-    <use href="#logoText"/>
-  </svg>
+  <svg class="logo" viewBox="0 0 640 200" role="img" aria-label="#Jevカノ"><use href="#logoText"/></svg>
   <h2 id="titleName">#Jevカノ</h2>
   <div class="box">
     <div class="cols">
@@ -687,7 +692,8 @@ async function turn(line, action) {
   if ($('voice').checked && w && lineVoice) {
     try {
       rec.tts = await speak(lineVoice, j ? j.mood : w.mood, () => { rec.tVoice = Math.round(performance.now() - t0); clockMark('Voice', rec.tVoice); }, { kind: action ? 'action' : 'line', intensity: j ? (j.moodProbs[j.mood] || null) : null, affection: S.affection });
-      if (rec.tVoice == null) { rec.tVoice = Math.round(performance.now() - t0); clockMark('Voice', rec.tVoice); }
+      if (rec.tts && rec.tts.kind === 'none') clockMark('Voice', null); // 字幕モード: 声の時間は出さない
+      else if (rec.tVoice == null) { rec.tVoice = Math.round(performance.now() - t0); clockMark('Voice', rec.tVoice); }
     } catch (e) { rec.ttsError = e.message; clockMark('Voice', null); }
     metaEl.innerHTML = tl();
   } else clockMark('Voice', null);
@@ -734,12 +740,14 @@ function ending(force) {
 $('form').addEventListener('submit', (ev) => { ev.preventDefault(); turn($('input').value); });
 $('input').addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); if (S && S.waitOpen && !$('input').value.trim()) { openingLine(); return; } turn($('input').value); } });
 $('input').addEventListener('input', schedulePeek);
-function toTitle() { $('ending').style.display = 'none'; $('backlog').style.display = 'none'; $('help').style.display = 'none'; $('title').style.display = 'flex'; document.body.classList.add('on-title'); if (S) { S.over = true; S.busy = true; } peekSeq++; if (typeof window.__renderEpisodes === 'function') window.__renderEpisodes(); }
+function toTitle() { $('ending').style.display = 'none'; $('backlog').style.display = 'none'; $('quit').style.display = 'none'; $('help').style.display = 'none'; $('title').style.display = 'flex'; document.body.classList.add('on-title'); if (S) { S.over = true; S.busy = true; } peekSeq++; if (typeof window.__renderEpisodes === 'function') window.__renderEpisodes(); }
 $('again').onclick = toTitle;
-$('quitBtn').onclick = () => { if (!S || S.over || confirm('タイトルに戻りますか？ 今回の分は残りません（セーブは次の版で）')) toTitle(); };
+$('quitBtn').onclick = () => { if (!S || S.over) toTitle(); else $('quit').style.display = 'flex'; };
+$('quitYes').onclick = () => { $('quit').style.display = 'none'; toTitle(); };
+$('quitNo').onclick = () => { $('quit').style.display = 'none'; };
 $('logBtn').onclick = () => { $('backlog').style.display = 'flex'; scrollDown(); };
 $('backlogClose').onclick = () => { $('backlog').style.display = 'none'; };
-for (const id of ['backlog', 'help']) $(id).addEventListener('click', (ev) => { if (ev.target === $(id)) $(id).style.display = 'none'; });
+for (const id of ['backlog', 'help', 'quit']) $(id).addEventListener('click', (ev) => { if (ev.target === $(id)) $(id).style.display = 'none'; });
 
 fetch('/api/config').then((r) => r.json()).then((c) => {
   cfg = c;
@@ -793,6 +801,13 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
   };
   $('playerName').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); $('startBtn').click(); } });
   fitWin();
+  // ?auto=1: 記録用の自動再生（開始 → モノローグを飛ばす → 候補の 1 つ目を言う）。?auto=pat なら触れる
+  const auto = new URLSearchParams(location.search).get('auto');
+  if (auto) setTimeout(() => {
+    if (!$('playerName').value) $('playerName').value = '拓海';
+    epSel.value = 'cleanup'; $('startBtn').click();
+    setTimeout(() => { while (S && S.waitOpen) openingLine(); const act = (c.scenario.actions || []).find((a) => a.id === auto); if (act) turn('', act); else turn(((S.episode && S.episode.suggestions) || c.scenario.suggestions)[0][0]); }, 600);
+  }, 900);
 });
 </script>
 </body>
