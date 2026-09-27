@@ -121,7 +121,7 @@ function turnInput(b) {
   }
   return {
     repeat,
-    heroineName, playerName, topics,
+    heroineName, playerName, topics, playerRole: scenario.playerRole || '',
     episode: ep ? ep.id : null,
     initiative: b.initiative === true,
     probe: b.probe === true,
