@@ -114,7 +114,7 @@ gcloud run deploy jev-kano-voice --source . --region asia-northeast1 --allow-una
   node deploy.mjs --service jev-kano --cap 400   # 本番を置き直す
   ```
 
-  `.env` のうち手元専用（`PORT`・`HOST`・`REFLEX_GALGE_OUT`）は渡さない（Cloud Run は `PORT` を自分で決めるので、渡すと落ちる）。`--model claude-sonnet-5` で実験だけ安いモデルに。本番（`jev-kano`）は触らない。眠っている間の費用はどちらもほぼ 0。実験をやめたら `gcloud run services delete jev-kano-stg --region asia-northeast1`。
+  本番（名前が `-stg` で終わらないサービス）は **main で、未コミットの変更が無いときだけ**置ける（`--force` で外せる）。置いた版は `/api/config` の `app.env`（stg／prod）と `app.rev`（コミット）で分かり、stg はタブの題に `[stg]` が付く。`.env` のうち手元専用（`PORT`・`HOST`・`REFLEX_GALGE_OUT`）は渡さない（Cloud Run は `PORT` を自分で決めるので、渡すと落ちる）。`--model claude-sonnet-5` で実験だけ安いモデルに。本番（`jev-kano`）は触らない。眠っている間の費用はどちらもほぼ 0。実験をやめたら `gcloud run services delete jev-kano-stg --region asia-northeast1`。
 
 ### つまずいたら
 

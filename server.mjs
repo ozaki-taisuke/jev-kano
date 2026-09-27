@@ -197,7 +197,7 @@ const server = http.createServer(async (req, res) => {
       return res.end(fs.readFileSync(path.join(here, 'public', 'rig.html')));
     }
     if (req.method === 'GET' && url.pathname === '/api/config') {
-      return send(res, 200, { has, ttsDown: ttsDown(), ttsRetryIn: ttsDown() ? ttsRetryIn() : null, llmModel: DEFAULT_MODEL, ttsModel: DEFAULT_TTS_MODEL, ttsVoice: DEFAULT_VOICE, scenario, faces: faceImages(), backgrounds: bgImages(), interjections: INTERJECTIONS, tiers: [0.6, 0.85], sfxReady: sfxStatus(MAIN_VOICE).ready.length, fallbackLines: FALLBACK_LINES, voices: scenario.voices || {} });
+      return send(res, 200, { app: { env: process.env.APP_ENV || 'local', rev: process.env.APP_REV || '' }, has, ttsDown: ttsDown(), ttsRetryIn: ttsDown() ? ttsRetryIn() : null, llmModel: DEFAULT_MODEL, ttsModel: DEFAULT_TTS_MODEL, ttsVoice: DEFAULT_VOICE, scenario, faces: faceImages(), backgrounds: bgImages(), interjections: INTERJECTIONS, tiers: [0.6, 0.85], sfxReady: sfxStatus(MAIN_VOICE).ready.length, fallbackLines: FALLBACK_LINES, voices: scenario.voices || {} });
     }
     if (req.method === 'GET' && url.pathname.startsWith('/faces/')) {
       const name = path.basename(url.pathname); const ext = path.extname(name).toLowerCase(); const sub = url.pathname.startsWith('/faces/green/') ? 'green' : '';
@@ -374,7 +374,7 @@ server.listen(PORT, HOST, () => {
   if (RELAY) { console.log('#Jevカノ 声の中継サーバー :' + PORT + '（声 ' + DEFAULT_TTS_MODEL + ' / ' + MAIN_VOICE + ' / 1 人 10 分 ' + RELAY_PER_IP + ' 回・1 日 ' + RELAY_DAILY_CAP + ' 回' + (RELAY_TOKEN ? '・合言葉あり' : '') + '）'); return; }
   console.log('#Jevカノ http://127.0.0.1:' + PORT + '/' + (HOST === '0.0.0.0' ? '  ／ 同じ Wi-Fi のスマホから: ' + lanUrls().join(' ') : '  （スマホから遊ぶなら HOST=0.0.0.0）'));
   console.log('  反射 Jev: ' + (has.jev ? 'あり' : 'なし（TYPESAFE_API_KEY）') + ' / 言葉 ' + DEFAULT_MODEL + ': ' + (has.llm ? 'あり' : 'なし（ANTHROPIC_API_KEY）') + ' / 声 ' + DEFAULT_TTS_MODEL + ': ' + (RELAY_URL ? '中継 ' + RELAY_URL : has.tts ? 'あり' : 'なし（GEMINI_API_KEY か GOOGLE_API_KEY）'));
-  console.log('  ログ: ' + path.join(OUT, 'turns.jsonl'));
+  console.log('  ログ: ' + path.join(OUT, 'turns.jsonl') + (process.env.APP_ENV ? '  環境: ' + process.env.APP_ENV + ' @ ' + (process.env.APP_REV || '?') : ''));
   const envFile = path.join(here, '.env'); console.log('  設定: ' + envFile + (fs.existsSync(envFile) ? '' : '（無い。環境変数だけで動いている。作るなら .env.example をコピー）'));
   prewarmSfx();
 });

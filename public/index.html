@@ -811,6 +811,7 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
   $('helpClose').onclick = () => { $('help').style.display = 'none'; };
   // 開始画面
   if (c.scenario.title) { $('appTitle').textContent = c.scenario.title; $('titleName').textContent = c.scenario.title; document.title = c.scenario.title; }
+  if (c.app && c.app.env === 'stg') document.title = '[stg] ' + document.title; // 本番のタブと見分ける
   const sel = $('heroineName'); if ((c.scenario.names || []).length <= 1) { sel.style.display = 'none'; $('heroineFixed').style.display = ''; $('heroineFixed').value = (c.scenario.names || [c.scenario.persona['名前']])[0]; $('heroineFixed').title = '当面はこの一人'; }
   for (const n of (c.scenario.names || [c.scenario.persona['名前']])) { const o = document.createElement('option'); o.value = n; const v = (c.voices || {})[n]; o.textContent = n + (v && v.note ? '（声: ' + v.note.replace(/^[A-Z]: /, '') + '）' : ''); sel.appendChild(o); }
   const epSel = $('episode');
