@@ -5,3 +5,4 @@
 _out/
 node_modules/
 making/
+*.env.yaml

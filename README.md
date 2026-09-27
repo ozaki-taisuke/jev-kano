@@ -106,14 +106,27 @@ gcloud run deploy jev-kano-voice --source . --region asia-northeast1 --allow-una
 ### 実験を本番と分けて置く（stg）
 
 - 本体を変えない実験は、別の頁として同じサーバーに置く。いまあるのは `/rig`（簡易リグ: 「表情の状態 → 描画」の層を挟み、反射の顔を一瞬出してから取り繕う・息づかい・赤面の残り。本番の差し替えと左右に並べて同じ入力で比較する）。手元なら http://127.0.0.1:8792/rig 。
-- 外から比較したいときは、Cloud Run に**別のサービス名**で置く（本番と同じ手順・同じ鍵・上限は小さく）。実験のブランチを checkout してから:
+- 外から比較したいときは、Cloud Run に**別のサービス名**で置く（本番と同じ手順・同じ鍵・上限は小さく）。環境変数は 1 つの YAML ファイルにまとめて渡す（`--env-vars-file` と `--set-env-vars` は同時に使えない）。リポジトリの外か、`*.env.yaml`（Git 管理外）の名前で:
 
-  ```bash
-  gcloud run deploy jev-kano-stg --source . --region asia-northeast1 --allow-unauthenticated \
-    --set-env-vars PUBLIC=1,RELAY_DAILY_CAP=100,RELAY_PER_IP_10MIN=30 --env-vars-file=（本番と同じ鍵のファイル）
+  ```yaml
+  # stg.env.yaml — .env と同じ名前の変数を「名前: 値」で書く（YAML なので = でなく :）
+  PUBLIC: "1"
+  RELAY_DAILY_CAP: "100"          # 全体で 1 日 100 手（本番は 400）
+  RELAY_PER_IP_10MIN: "30"
+  TTS_VOICE: voice_n768ib2j6rqa   # 彼女の声（本番と同じ）
+  TYPESAFE_API_KEY: ts_...        # 本番と同じ 3 つの鍵
+  ANTHROPIC_API_KEY: sk-ant-...
+  GEMINI_API_KEY: AIza...
+  # LLM_MODEL: claude-sonnet-5    # 実験は安いモデルでもよい
   ```
 
-  本番（`jev-kano`）は触らない。眠っている間の費用はどちらもほぼ 0。実験をやめたら `gcloud run services delete jev-kano-stg`。
+  実験のブランチを checkout してから:
+
+  ```bash
+  gcloud run deploy jev-kano-stg --source . --region asia-northeast1 --allow-unauthenticated --env-vars-file=stg.env.yaml
+  ```
+
+  本番（`jev-kano`）は触らない。眠っている間の費用はどちらもほぼ 0。実験をやめたら `gcloud run services delete jev-kano-stg --region asia-northeast1`。
 
 ### つまずいたら
 
