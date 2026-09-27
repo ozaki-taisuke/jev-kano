@@ -13,9 +13,9 @@ services:
       - key: PUBLIC
         value: "1"                 # 公開サーバー: 遊ぶ側の口にも 1 人・全体の回数上限
       - key: RELAY_DAILY_CAP
-        value: "1200"              # 全体で 1 日 1,200 回（1 手で 3 回数える ≒ 40 ゲーム）
+        value: "400"               # 全体で 1 日 400 手（≒ 40 ゲーム。言葉の生成だけを数える）
       - key: RELAY_PER_IP_10MIN
-        value: "40"                # 1 人（IP）10 分 40 回 ≒ 13 手
+        value: "30"                # 1 人（IP）10 分 30 手
       - key: TTS_VOICE
         value: voice_n768ib2j6rqa  # 彼女の声（作者の Google プロジェクトの声。他の人が置くなら自分の声か Leda）
       - key: TYPESAFE_API_KEY

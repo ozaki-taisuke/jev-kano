@@ -48,7 +48,15 @@ const RELAY_URL = (process.env.VOICE_RELAY_URL || '').replace(/\/+$/, '');
 const RELAY = process.env.VOICE_RELAY === '1';
 const has = { jev: !!process.env.TYPESAFE_API_KEY, llm: !!process.env.ANTHROPIC_API_KEY, tts: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) || !!RELAY_URL };
 // 中継サーバーの守り: 1 人（IP）あたり 10 分に N 回、全体で 1 日 M 回、文は 200 字まで、任意の合言葉
-const RELAY_PER_IP = Number(process.env.RELAY_PER_IP_10MIN || 40), RELAY_DAILY_CAP = Number(process.env.RELAY_DAILY_CAP || 3000), RELAY_TOKEN = process.env.RELAY_TOKEN || '';
+const RELAY_PER_IP = Number(process.env.RELAY_PER_IP_10MIN || 30), RELAY_DAILY_CAP = Number(process.env.RELAY_DAILY_CAP || 400), RELAY_TOKEN = process.env.RELAY_TOKEN || '';
+// 反射だけの緩い守り（先読みが 0.35 秒ごとに来るので多め）: 1 人 10 分 600 回
+const reflexHits = new Map();
+function reflexAllow(req) {
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const now = Date.now(); const hits = (reflexHits.get(ip) || []).filter((t) => now - t < 600000);
+  if (hits.length >= 600) return '反射の回数が多すぎる。少し待って';
+  hits.push(now); reflexHits.set(ip, hits); return null;
+}
 const ipHits = new Map(); let dayKey = '', dayCount = 0;
 function relayAllow(req) {
   if (RELAY_TOKEN && req.headers['x-relay-token'] !== RELAY_TOKEN) return '合言葉が違う';
@@ -221,7 +229,9 @@ const server = http.createServer(async (req, res) => {
       } catch (e) { return send(res, 502, { error: e.message }); }
     }
     if (req.method !== 'POST') return send(res, 404, { error: 'not found' });
-    if (PUBLIC && ['/api/reflex', '/api/words', '/api/voice/stream'].includes(url.pathname)) { const why = relayAllow(req); if (why) return send(res, 429, { error: why }); }
+    // 公開サーバーの守りは「手」で数える: 言葉の生成（/api/words）だけを 1 人・全体の上限に数える。反射（先読み含む）と声は数えない（反射は 1 回 0.005 円、声は言葉と対）
+    if (PUBLIC && url.pathname === '/api/words') { const why = relayAllow(req); if (why) return send(res, 429, { error: why }); }
+    if (PUBLIC && url.pathname === '/api/reflex') { const why = reflexAllow(req); if (why) return send(res, 429, { error: why }); }
     const b = await readBody(req);
 
     if (url.pathname === '/api/reflex') {
