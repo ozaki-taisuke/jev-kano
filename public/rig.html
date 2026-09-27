@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>#Jevカノ — 簡易リグの実験</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --ink:#1f2a44; --paper:#f7f3ea; --panel:#fff; --sky:#5aa9e6; --sun:#f08a4b; --line:#e3ddd0; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic",system-ui,sans-serif; }
+  header { padding:14px 16px 6px; }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:6px 0 0; font-size:13px; line-height:1.6; opacity:.85; }
+  header p b { color:var(--sun); }
+  .wrap { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:10px 16px 16px; max-width:1180px; margin:0 auto; }
+  @media (max-width:800px) { .wrap { grid-template-columns:1fr; } }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .panel h2 { margin:0; padding:8px 12px; font-size:14px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  .panel h2 span { font-weight:400; font-size:12px; opacity:.7; }
+  .view { position:relative; aspect-ratio:1/1; background:#cbd3dc center/cover no-repeat; overflow:hidden; }
+  .view img, .view canvas { position:absolute; left:50%; bottom:0; width:100%; height:100%; transform:translateX(-50%); object-fit:contain; }
+  .view img.pop { animation:pop .28s cubic-bezier(.2,.9,.3,1.4); }
+  @keyframes pop { 0% { transform:translateX(-50%) scale(.985) translateY(3px); } 100% { transform:translateX(-50%) scale(1) translateY(0); } }
+  .say { position:absolute; left:8px; right:8px; bottom:8px; background:rgba(255,255,255,.92); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:13px; min-height:40px; line-height:1.5; }
+  .say small { display:block; font-size:11px; opacity:.6; }
+  .state { padding:8px 12px; font-size:12px; font-family:ui-monospace,Menlo,Consolas,monospace; border-top:1px solid var(--line); min-height:52px; white-space:pre-wrap; opacity:.85; }
+  .ctl { grid-column:1 / -1; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; font-size:13px; }
+  .ctl .grp { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .ctl .grp > b { margin-right:2px; font-size:12px; opacity:.7; }
+  button { font:inherit; font-size:13px; padding:6px 10px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; }
+  button:hover { border-color:var(--sky); }
+  button.m-joy { border-color:#f2b84b; } button.m-shy { border-color:#f08aa4; } button.m-puzzled { border-color:#9fb3c8; } button.m-upset { border-color:#7a6fbf; } button.m-calm { border-color:#b8c4b0; }
+  button.on { background:var(--sky); color:#fff; border-color:var(--sky); }
+  label.t { display:inline-flex; align-items:center; gap:4px; }
+  input[type=range] { width:110px; }
+  .log { grid-column:1 / -1; font-size:12px; font-family:ui-monospace,Menlo,Consolas,monospace; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:8px 12px; max-height:180px; overflow:auto; }
+  .log div { padding:1px 0; border-bottom:1px dashed #eee; }
+  .log .l { color:#888; } .log .r { color:var(--sky); }
+  footer { font-size:12px; opacity:.7; padding:0 16px 20px; max-width:1180px; margin:0 auto; line-height:1.6; }
+</style>
+</head>
+<body>
+<header>
+  <h1>簡易リグの実験 — 本番（差し替え）と並べて比較</h1>
+  <p>同じ入力（本音 × 強さ）を左右に同時に送る。左はいまのゲームと同じ「画像の差し替え」。右は「表情の状態 → 描画」の層を挟み、<b>反射の顔を一瞬だけ出してから取り繕う</b>・息づかい・揺れ・赤面の残りをパラメータで足したもの。絵は同じ 9 枚（顔は生成。v1 でリグに替えるときはこの右側の描画だけが替わる）。</p>
+</header>
+
+<div class="wrap">
+  <section class="panel">
+    <h2>本番（いまの描画）<span>画像を差し替えて .pop</span></h2>
+    <div class="view" id="viewL">
+      <img id="imgL" alt="">
+      <div class="say" id="sayL"><small>言葉</small>&nbsp;</div>
+    </div>
+    <div class="state" id="stL"></div>
+  </section>
+  <section class="panel">
+    <h2>実験（状態 → 描画）<span>反射 → 取り繕う → 言葉</span></h2>
+    <div class="view" id="viewR">
+      <canvas id="cv"></canvas>
+      <div class="say" id="sayR"><small>言葉</small>&nbsp;</div>
+    </div>
+    <div class="state" id="stR"></div>
+  </section>
+
+  <div class="ctl">
+    <div class="grp" id="moods"><b>本音</b></div>
+    <div class="grp" id="tiers"><b>強さ</b>
+      <button data-t="0" class="on">弱</button><button data-t="1">中</button><button data-t="2">強</button>
+    </div>
+    <div class="grp"><b>実験側</b>
+      <label class="t"><input type="checkbox" id="optCompose" checked> 取り繕う</label>
+      <label class="t">保つ <input type="range" id="optHold" min="150" max="2000" step="50" value="600"> <span id="optHoldV">600</span> ms</label>
+      <label class="t"><input type="checkbox" id="optBreath" checked> 息づかい</label>
+      <label class="t"><input type="checkbox" id="optSway" checked> 揺れ</label>
+      <label class="t"><input type="checkbox" id="optBlush" checked> 赤面の残り</label>
+    </div>
+    <div class="grp"><b>言葉</b>
+      <label class="t">遅れ <input type="range" id="optWords" min="0" max="5000" step="250" value="2500"> <span id="optWordsV">2500</span> ms</label>
+      <button id="btnAuto">自動で流す</button>
+    </div>
+  </div>
+
+  <div class="log" id="log"></div>
+</div>
+<footer>
+  この頁はゲーム本体を変えない実験（<code>/rig</code>）。本体には <code>?rig=1</code> のような切り替えで後から繋ぐ。Live2D／Inochi2D の本物のリグはパーツ分けした絵と GUI の作業が要るので、ここでは「効果の先取り」だけ。まばたきと口の動きは絵にパーツが無いので作っていない。
+</footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const MOOD_JA = { joy: '嬉しい', shy: '照れ', puzzled: '困惑', upset: '不機嫌', calm: '平静' };
+const TIER_JA = ['弱', '中', '強'];
+const ORDER = ['shy', 'joy', 'puzzled', 'upset', 'calm'];
+let cfg, tier = 0, auto = null;
+
+// ---- 緑を透明に（本体と同じ式）。canvas で返す ----
+function cutout(url) {
+  return new Promise((res) => {
+    const im = new Image(); im.onload = () => {
+      try {
+        const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+        const d = x.getImageData(0, 0, c.width, c.height); const p = d.data;
+        for (let i = 0; i < p.length; i += 4) {
+          const r = p[i], g = p[i + 1], b = p[i + 2]; const m = Math.max(r, b); const gn = g - m;
+          if (gn > 12) { const a = gn < 30 ? 1 : gn > 96 ? 0 : 1 - (gn - 30) / 66; p[i + 3] = Math.round(p[i + 3] * a); p[i + 1] = m; }
+        }
+        x.putImageData(d, 0, 0); res(c);
+      } catch { res(null); }
+    }; im.onerror = () => res(null); im.src = url;
+  });
+}
+const CUT = {}; // key → canvas
+const keyOf = (mood, t) => (t === 2 && CUT[mood + '_strong']) ? mood + '_strong' : mood;
+
+// ---- 左: 本番と同じ差し替え ----
+function leftSet(key) {
+  const im = $('imgL'); if (CUT[key]) im.src = CUT[key].toDataURL('image/png');
+  im.classList.remove('pop'); void im.offsetWidth; im.classList.add('pop');
+  $('stL').textContent = 'face = ' + key + '\n（次の手まで、この顔のまま）';
+}
+
+// ---- 右: 表情の状態 → 描画 ----
+// 状態: 目標の絵（key）と、前の絵からのブレンド。赤面は別のパラメータ。反射は速く（120ms）、取り繕うときは遅く（700ms）。
+const R = { prev: 'calm', cur: 'calm', t0: 0, dur: 1, blush: 0, blushTarget: 0, blushTau: 0.25, pop0: -1, composeAt: 0, phase: 'idle', gen: 0 };
+const BLUSH = { shy: [0.45, 0.75, 1], joy: [0.2, 0.35, 0.5], puzzled: [0, 0.1, 0.2], upset: [0, 0, 0.1], calm: [0, 0, 0] };
+function rightGo(key, dur, blushTarget, tau, pop) {
+  const now = performance.now();
+  R.prev = R.cur; R.cur = key; R.t0 = now; R.dur = dur; R.blushTarget = blushTarget; R.blushTau = tau; if (pop) R.pop0 = now;
+}
+function rightEvent(mood, t) {
+  const gen = ++R.gen; const key = keyOf(mood, t);
+  rightGo(key, 120, BLUSH[mood][t], 0.12, true); R.phase = 'reflex';
+  if ($('optCompose').checked && mood !== 'calm') {
+    const hold = +$('optHold').value; R.composeAt = performance.now() + hold;
+    setTimeout(() => { if (R.gen !== gen) return; rightGo('calm', 700, 0, $('optBlush').checked ? 2.6 : 0.3, false); R.phase = 'compose'; log('r', '取り繕う → calm（' + hold + ' ms 後・700 ms かけて。赤面は' + ($('optBlush').checked ? 'ゆっくり引く' : 'すぐ消える') + '）'); }, hold);
+  } else R.composeAt = 0;
+}
+const ease = (p) => p < 0 ? 0 : p > 1 ? 1 : p * p * (3 - 2 * p);
+const cv = $('cv'); const cx = cv.getContext('2d');
+let bgImg = null;
+function draw(now) {
+  const W = cv.clientWidth, H = cv.clientHeight, dpr = Math.min(2, devicePixelRatio || 1);
+  if (cv.width !== W * dpr || cv.height !== H * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, W, H);
+  if (bgImg) { const s = Math.max(W / bgImg.width, H / bgImg.height); cx.drawImage(bgImg, (W - bgImg.width * s) / 2, (H - bgImg.height * s) / 2, bgImg.width * s, bgImg.height * s); }
+  const t = now / 1000;
+  // 息づかい・揺れ（足元を軸に）
+  const breath = $('optBreath').checked ? 1 + 0.006 * Math.sin(t * 1.9) : 1;
+  const bob = $('optBreath').checked ? 1.5 * Math.sin(t * 1.9) : 0;
+  const rot = $('optSway').checked ? 0.004 * Math.sin(t * 0.7) : 0;
+  let pop = 1; if (R.pop0 >= 0) { const p = (now - R.pop0) / 280; if (p >= 1) R.pop0 = -1; else pop = 0.985 + 0.015 * (1 - Math.pow(1 - p, 3)) + 0.006 * Math.sin(p * Math.PI); }
+  cx.save(); cx.translate(W / 2, H); cx.rotate(rot); cx.scale(pop, breath * pop); cx.translate(0, bob);
+  const drawKey = (k, a) => { const c = CUT[k]; if (!c) return; cx.globalAlpha = a; const s = Math.min(W / c.width, H / c.height); cx.drawImage(c, -c.width * s / 2, -c.height * s, c.width * s, c.height * s); };
+  const p = ease((now - R.t0) / R.dur);
+  if (p < 1 && R.prev !== R.cur) { drawKey(R.prev, 1); drawKey(R.cur, p); } else drawKey(R.cur, 1);
+  // 赤面: 絵の上だけに（source-atop）。頬の位置は 1024 基準の相対座標
+  const dt = 1 / 60; R.blush += (R.blushTarget - R.blush) * (1 - Math.exp(-dt / R.blushTau));
+  if (R.blush > 0.01) {
+    const c = CUT[R.cur]; if (c) {
+      const s = Math.min(W / c.width, H / c.height); cx.globalCompositeOperation = 'source-atop'; cx.globalAlpha = 1;
+      for (const [fx, fy] of [[0.38, 0.475], [0.625, 0.475]]) {
+        const x = (fx - 0.5) * c.width * s, y = (fy - 1) * c.height * s, r = 0.07 * c.width * s;
+        const g = cx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(255,110,140,' + (0.42 * R.blush) + ')'); g.addColorStop(1, 'rgba(255,110,140,0)');
+        cx.fillStyle = g; cx.beginPath(); cx.ellipse(x, y, r, r * 0.6, 0, 0, Math.PI * 2); cx.fill();
+      }
+      cx.globalCompositeOperation = 'source-over';
+    }
+  }
+  cx.restore();
+  const left = R.composeAt ? Math.max(0, R.composeAt - now) : 0;
+  $('stR').textContent = 'face = ' + R.cur + (p < 1 ? ' ← ' + R.prev + ' (' + Math.round(p * 100) + '%)' : '') + '\nblush = ' + R.blush.toFixed(2) + '  phase = ' + R.phase + (left ? '  取り繕うまで ' + Math.round(left) + ' ms' : '');
+  requestAnimationFrame(draw);
+}
+
+// ---- 言葉（予備の台詞から。声は鳴らさない）: 両方に同じ遅れで出す ----
+let wordsTimer = null;
+function words(mood) {
+  clearTimeout(wordsTimer); $('sayL').innerHTML = '<small>言葉</small>&nbsp;'; $('sayR').innerHTML = '<small>言葉</small>&nbsp;';
+  const bank = (cfg.fallbackLines || {})[mood] || ['……はい。']; const line = bank[Math.floor(Math.random() * bank.length)]; const delay = +$('optWords').value;
+  wordsTimer = setTimeout(() => { $('sayL').innerHTML = '<small>言葉（' + delay + ' ms 後）</small>' + esc(line); $('sayR').innerHTML = '<small>言葉（' + delay + ' ms 後）</small>' + esc(line); log('', '言葉「' + line + '」'); }, delay);
+}
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function log(side, text) { const d = document.createElement('div'); d.className = side; d.textContent = (performance.now() / 1000).toFixed(2) + 's  ' + (side === 'l' ? '[本番] ' : side === 'r' ? '[実験] ' : '') + text; const L = $('log'); L.prepend(d); while (L.children.length > 60) L.lastChild.remove(); }
+
+function fire(mood, t) {
+  log('', '入力: 本音=' + MOOD_JA[mood] + ' 強さ=' + TIER_JA[t]);
+  leftSet(keyOf(mood, t)); log('l', 'face → ' + keyOf(mood, t) + '（差し替え・.pop）');
+  rightEvent(mood, t); log('r', 'face → ' + keyOf(mood, t) + '（120 ms でブレンド・赤面 ' + BLUSH[mood][t] + '）');
+  words(mood);
+}
+
+async function boot() {
+  cfg = await (await fetch('/api/config')).json();
+  const g = (cfg.faces && cfg.faces.green) || {};
+  await Promise.all(Object.entries(g).map(async ([k, url]) => { const c = await cutout(url); if (c) CUT[k] = c; }));
+  const bgs = cfg.backgrounds || {}; const bgUrl = bgs.clubroom || Object.values(bgs)[0];
+  if (bgUrl) { $('viewL').style.backgroundImage = 'url(' + bgUrl + ')'; bgImg = new Image(); bgImg.src = bgUrl; }
+  for (const m of ORDER) { const b = document.createElement('button'); b.className = 'm-' + m; b.textContent = MOOD_JA[m]; b.onclick = () => fire(m, tier); $('moods').appendChild(b); }
+  for (const b of $('tiers').querySelectorAll('button')) b.onclick = () => { tier = +b.dataset.t; for (const o of $('tiers').querySelectorAll('button')) o.classList.toggle('on', o === b); };
+  $('optHold').oninput = () => { $('optHoldV').textContent = $('optHold').value; }; $('optWords').oninput = () => { $('optWordsV').textContent = $('optWords').value; };
+  $('btnAuto').onclick = () => { if (auto) { clearInterval(auto); auto = null; $('btnAuto').classList.remove('on'); return; } $('btnAuto').classList.add('on'); const go = () => fire(ORDER[Math.floor(Math.random() * 4)], Math.floor(Math.random() * 3)); go(); auto = setInterval(go, 4500); };
+  leftSet('calm'); rightGo('calm', 1, 0, 0.2, false);
+  requestAnimationFrame(draw);
+  if (!Object.keys(CUT).length) log('', '緑背景の絵（public/faces/green/）が読めない。本体と同じ場所に置く');
+}
+boot();
+</script>
+</body>
+</html>

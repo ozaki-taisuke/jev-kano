@@ -103,6 +103,18 @@ gcloud run deploy jev-kano-voice --source . --region asia-northeast1 --allow-una
 
 出てきた URL を配る。守り: 1 人（IP）10 分 `RELAY_PER_IP_10MIN`（既定 40）・全体 1 日 `RELAY_DAILY_CAP`（既定 3,000）・文は 200 字まで・`RELAY_TOKEN` を両側に書けば合言葉つき。費用は Gemini TTS の分だけ（Tier 2 なら 1 日 100 回の壁は無い）。
 
+### 実験を本番と分けて置く（stg）
+
+- 本体を変えない実験は、別の頁として同じサーバーに置く。いまあるのは `/rig`（簡易リグ: 「表情の状態 → 描画」の層を挟み、反射の顔を一瞬出してから取り繕う・息づかい・赤面の残り。本番の差し替えと左右に並べて同じ入力で比較する）。手元なら http://127.0.0.1:8792/rig 。
+- 外から比較したいときは、Cloud Run に**別のサービス名**で置く（本番と同じ手順・同じ鍵・上限は小さく）。実験のブランチを checkout してから:
+
+  ```bash
+  gcloud run deploy jev-kano-stg --source . --region asia-northeast1 --allow-unauthenticated \
+    --set-env-vars PUBLIC=1,RELAY_DAILY_CAP=100,RELAY_PER_IP_10MIN=30 --env-vars-file=（本番と同じ鍵のファイル）
+  ```
+
+  本番（`jev-kano`）は触らない。眠っている間の費用はどちらもほぼ 0。実験をやめたら `gcloud run services delete jev-kano-stg`。
+
 ### つまずいたら
 
 - **ポート 8792 が使われている** → `.env` に `PORT=8793` など。

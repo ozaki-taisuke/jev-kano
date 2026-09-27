@@ -192,6 +192,10 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(fs.readFileSync(INDEX));
     }
+    if (req.method === 'GET' && url.pathname === '/rig') { // 実験: 簡易リグを本番の描画と並べて比較する頁（本体は変えない）
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(fs.readFileSync(path.join(here, 'public', 'rig.html')));
+    }
     if (req.method === 'GET' && url.pathname === '/api/config') {
       return send(res, 200, { has, ttsDown: ttsDown(), ttsRetryIn: ttsDown() ? ttsRetryIn() : null, llmModel: DEFAULT_MODEL, ttsModel: DEFAULT_TTS_MODEL, ttsVoice: DEFAULT_VOICE, scenario, faces: faceImages(), backgrounds: bgImages(), interjections: INTERJECTIONS, tiers: [0.6, 0.85], sfxReady: sfxStatus(MAIN_VOICE).ready.length, fallbackLines: FALLBACK_LINES, voices: scenario.voices || {} });
     }
