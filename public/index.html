@@ -461,7 +461,8 @@ function schedulePeek() {
 // ---- 音 ----
 let actx = null, nextAt = 0; // nextAt: 次の音を鳴らしてよい時刻（一言と台詞が重ならないよう共有）
 const playing = new Set(); // 鳴っている断片。新しい手を送ったら止める（前の声の後ろに一言が並ぶと反射が遅れて聞こえる）
-function stopAudio() { for (const src of playing) { try { src.stop(); } catch {} } playing.clear(); nextAt = 0; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
+let audioEpoch = 0; // 止めるたびに進む。止めた時点より前に頼んだ声は、届いても鳴らさない
+function stopAudio() { audioEpoch++; for (const src of playing) { try { src.stop(); } catch {} } playing.clear(); nextAt = 0; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
 let outNode = null;
 function ctx() {
   actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume();
@@ -474,7 +475,7 @@ function ctx() {
 }
 const VOICE_GAIN = 2.6;
 /** サーバーから届く PCM16（モノラル）を、届いた断片から順に鳴らす。最初の音で onFirst */
-async function playPcm(r, onFirst) {
+async function playPcm(r, onFirst, epoch = audioEpoch) {
   const ac = ctx(); const t0 = performance.now();
   const rate = Number(r.headers.get('X-Sample-Rate')) || 24000;
   const reader = r.body.getReader();
@@ -491,6 +492,7 @@ async function playPcm(r, onFirst) {
     if (first == null) { first = Math.round(performance.now() - t0); onFirst && onFirst(first); }
   };
   while (true) {
+    if (epoch !== audioEpoch) { try { reader.cancel(); } catch {} break; } // その間に止められた（新しい手が送られた）
     const { done, value } = await reader.read();
     if (value) { const m = new Uint8Array(carry.length + value.length); m.set(carry); m.set(value, carry.length); carry = m; total += value.length; }
     if (done || carry.length >= MIN) { const usable = carry.length & ~1; if (usable) { play(carry.subarray(0, usable)); carry = carry.slice(usable); } }
@@ -544,8 +546,9 @@ async function interject(kind, mood, tier, onFirst) {
     return { kind: 'gemini-sfx-memory', seconds: +sfxBuf[key].duration.toFixed(2) };
   }
   try {
+    const epoch = audioEpoch;
     const r = await fetch('/api/sfx/' + key + '?heroine=' + encodeURIComponent(S.heroineName || '')); if (!r.ok) throw new Error(String(r.status));
-    return { kind: 'gemini-sfx', ...(await playPcm(r, onFirst)) };
+    return { kind: 'gemini-sfx', ...(await playPcm(r, onFirst, epoch)) };
   } catch (e) {
     if (!useBrowserVoice) return { kind: 'none' };
     const o = speakBrowser(cfg.interjections[kind][mood][tier], mood); onFirst && onFirst(0); return { ...o, kind: 'browser-fallback' };
@@ -556,10 +559,11 @@ async function speak(text, mood, onFirst, extra = {}) {
   if (subtitleMode && !useBrowserVoice) return { kind: 'none', subtitle: true };
   if (cfg.has.tts && !subtitleMode) {
     try {
+      const epoch = audioEpoch;
       const r = await fetch('/api/voice/stream', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, mood, heroineName: S.heroineName, ...extra }) });
       if (!r.ok) { let j = {}; try { j = await r.json(); } catch {} throw new Error(j.error || r.status); }
       notice('');
-      return { kind: 'gemini-stream', model: r.headers.get('X-TTS-Model') || '', ...(await playPcm(r, onFirst)) };
+      return { kind: 'gemini-stream', model: r.headers.get('X-TTS-Model') || '', ...(await playPcm(r, onFirst, epoch)) };
     } catch (e) {
       const m = e.message.match(/(?:retry in|あと) ([^ )）]+)/i);
       if (!useBrowserVoice) { enterSubtitleMode(/per day|上限|429/.test(e.message) ? '今日の上限' + (m ? '・あと ' + m[1] : '') : '届かない'); return { kind: 'none', error: e.message }; }
@@ -576,8 +580,9 @@ async function speakFixed(text, mood) {
   if (!$('voice').checked) return;
   try {
     if (cfg.has.tts || cfg.sfxReady) {
+      const epoch = audioEpoch;
       const r = await fetch('/api/fixed?text=' + encodeURIComponent(text) + '&mood=' + mood + '&heroine=' + encodeURIComponent(S.heroineName || ''));
-      if (r.ok) { await playPcm(r, null); return; }
+      if (r.ok) { await playPcm(r, null, epoch); return; }
     }
     if (useBrowserVoice) speakBrowser(text, mood);
   } catch (e) { if (useBrowserVoice) { try { speakBrowser(text, mood); } catch {} } }
