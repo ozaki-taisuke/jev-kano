@@ -255,3 +255,9 @@
 - 同じ `server.mjs` を `VOICE_RELAY=1` で起動すると、声の口（台詞のストリーム・一言・冒頭結末）だけを公開する中継サーバーになる。遊ぶ側は `.env` に `VOICE_RELAY_URL` を書くだけで、Gemini の鍵なしに作者の設計した声で読める（Jev と Claude は各自の鍵）。
 - 守り: 1 人（IP）10 分 40 回・全体 1 日 3,000 回・文 200 字・任意の合言葉（`RELAY_TOKEN`）。Cloud Run に `--source .` で置く手順を README に。
 - 手元で確認: 中継 8794・鍵なしの遊ぶ側 8795 → 声 261 KB が中継経由で届く、同梱の冒頭はそのまま、41 回目で 429。最初は応答ヘッダに日本語「(中継)」を入れて落ちた → ASCII に。
+
+## 9/27 夜 — 公開（本人「自分の PC を公開サーバーにするのは却下」→ Cloud Run）
+
+- gcloud が古いプロジェクト（課金なし）を向いていた／PowerShell に bash の改行を貼っていた／ビルド係のサービスアカウントに権限が無かった（`roles/cloudbuild.builds.builder` を付与）、の 3 つを越えて、声 D のあるプロジェクト Kawaii-TTS-for-Jev に `gcloud run deploy --source .` で置いた。鍵はリポジトリ外の環境変数ファイルで渡し、`.gcloudignore` で `.env`・`_out`・`making` を除外。
+- 公開 URL: https://jev-kano-64632361989.asia-northeast1.run.app/ 。外から確認: 画面 200・同梱の一言 200・Jev 反射 301 ms・声 D 172 KB。守りは `PUBLIC=1`（1 人 10 分 40 回・全体 1 日 1,200 回 ≒ 40 ゲーム）。
+- Render の設計図（`render.yaml`）と Tailscale Funnel も用意したが、Funnel は本人が却下（責任の持てる置き場に）。
