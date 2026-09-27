@@ -31,20 +31,50 @@
 - 背景は `public/bg/clubroom.jpg`（人物なし・文字なし）。停電・ステージ袖は同じ絵に CSS の色調で。
 - 内容は全年齢の範囲（触れる場所は髪・おでこ・頬・肩・襟元。襟元は「触れるべきでない場所」として怒られる）。
 
-## 動かし方
+## インストールと起動
 
-```bash
-npm install
-cp .env.example .env   # キーを書く（Git 管理外）
-npm start              # http://127.0.0.1:8792/
-npm test               # 鍵なしで起動・画面・設定・拒否を確かめる
-```
+必要なもの: **Node.js 20 以上**（`node -v` で確認）と、鍵が 1〜3 つ。
 
-| 環境変数 | 必須 | 意味 |
-|:--|:-:|:--|
-| `TYPESAFE_API_KEY` | 反射に | Jev（`jev-latest`）。無ければ LLM だけモードで動く |
-| `ANTHROPIC_API_KEY` | 必須 | 台詞。`LLM_MODEL` で変更（既定 `claude-opus-5`） |
-| `GEMINI_API_KEY`（`GOOGLE_API_KEY` でも可） | 任意 | 声。`TTS_MODEL`（既定 `gemini-3.8-flash-tts`）・`TTS_VOICE`（`voice_…` の ID か既製の名前） |
+1. 取ってくる
+
+   ```bash
+   git clone https://github.com/ozaki-taisuke/jev-kano.git
+   cd jev-kano
+   npm install
+   ```
+
+2. 鍵を書く。`.env.example` を `.env` にコピーして、値を入れる（`.env` は Git 管理外）
+
+   ```bash
+   cp .env.example .env        # Windows のコマンドプロンプトなら: copy .env.example .env
+   ```
+
+   | 環境変数 | 要る？ | 何に | 取るところ |
+   |:--|:-:|:--|:--|
+   | `ANTHROPIC_API_KEY` | **必須** | 台詞（Claude）。`LLM_MODEL` で変更（既定 `claude-opus-5`） | https://console.anthropic.com/ |
+   | `TYPESAFE_API_KEY` | 反射に | Jev（`jev-latest`）。無ければ「LLM だけ」モード（顔が言葉と一緒に出る） | https://typesafe.ai/ |
+   | `GEMINI_API_KEY`（`GOOGLE_API_KEY` でも可） | 声に | Gemini TTS。無ければ字幕モード（同梱の一言・冒頭・結末は鳴る） | https://aistudio.google.com/ |
+
+3. 起動して、ブラウザで開く
+
+   ```bash
+   npm start                   # http://127.0.0.1:8792/
+   ```
+
+   `npm test` で、鍵なしでも起動・画面・設定・拒否が期待どおりかを確かめられる。
+
+### 声について（大事）
+
+- 彼女の声は Gemini の Voice design で作った `voice_…` の ID で、**作った Google のプロジェクトの鍵でしか使えない**（公式に共有の仕組みがない）。あなたの鍵で動かすと、サーバーが「見つからない」を受けて**既製の声 `Leda` に自動で切り替え**、以後はその声で読む（起動ログに 1 行出る）。同梱の一言・冒頭・結末（29 本）は作者の声のまま鳴る。
+- 自分の声を作るなら `node design_voice.mjs --preset` で候補を作って試聴し、気に入った `voice_…` を `.env` の `TTS_VOICE` に。既製の名前（`Leda`・`Kore` など）も指定できる。切り替え先は `TTS_FALLBACK_VOICE`。
+- 声を作者のサーバーが中継する形（あなたの鍵は Jev と Claude だけ、声は作者の鍵で同じ声）は次の版で。
+
+### つまずいたら
+
+- **ポート 8792 が使われている** → `.env` に `PORT=8793` など。
+- **声が出ない・「上限」と出る** → Gemini は無料枠で 1 日 10 回、Tier 1 で 1 日 100 回（モデルごと）。上限に当たるとサーバーが戻る時刻まで呼ばず、画面は字幕モード。Tier 2（累計 $100 の支払い＋3 日）で壁が消える。
+- **言葉が出ない** → `ANTHROPIC_API_KEY` を確認。Claude が使えないときは本音に合う予備の台詞で続く。
+- **顔が SVG のまま** → `public/faces/` の画像が読めていない。`git clone` し直す。
 
 ### 枠と縮退
 

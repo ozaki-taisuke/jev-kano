@@ -18,7 +18,7 @@ const scenario = JSON.parse(fs.readFileSync(path.join(here, 'scenario.json'), 'u
 const SRC = path.join(process.env.REFLEX_GALGE_OUT || path.join(here, '_out'), 'sfx');
 const DST = path.join(here, 'public', 'sfx');
 fs.mkdirSync(DST, { recursive: true });
-const voices = new Set([DEFAULT_VOICE, ...(scenario.names || []).map((n) => ((scenario.voices || {})[n] || {}).id).filter(Boolean)]);
+const voices = new Set([process.env.TTS_VOICE || ((scenario.voices || {})[(scenario.names || [])[0]] || {}).id || DEFAULT_VOICE]);
 const want = new Set();
 for (const voice of voices) {
   for (const kind of Object.keys(INTERJECTIONS)) for (const mood of Object.keys(INTERJECTIONS[kind])) for (let tier = 0; tier < 3; tier++) if (forSpeech(sfxText(kind, mood, tier))) want.add(sfxName(kind, mood, tier, voice));

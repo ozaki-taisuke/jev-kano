@@ -66,7 +66,9 @@ const SFX_DIR = path.join(OUT, 'sfx');
 const sfxPending = {};
 const SFX_BUNDLED = path.join(here, 'public', 'sfx'); // 同梱の一言（Git 管理）。API が無くても鳴る
 // 名前 → 声（scenario.voices）。無ければ既定の声
-const voiceFor = (heroineName) => ((scenario.voices || {})[heroineName] || {}).id || DEFAULT_VOICE;
+// 名前 → 声。.env の TTS_VOICE があればそれを全員に（自分で設計した声・既製の名前）。無ければ scenario.voices（作者のプロジェクトの声。別の鍵では既製の声に自動で切り替わる）
+const voiceFor = (heroineName) => process.env.TTS_VOICE || ((scenario.voices || {})[heroineName] || {}).id || DEFAULT_VOICE;
+const MAIN_VOICE = voiceFor((scenario.names || [])[0] || scenario.persona['名前']);
 const sfxFile = (kind, mood, tier, voice) => path.join(SFX_DIR, sfxName(kind, mood, tier, voice));
 const sfxExisting = (kind, mood, tier, voice) => [path.join(SFX_BUNDLED, sfxName(kind, mood, tier, voice)), sfxFile(kind, mood, tier, voice)].find((f) => fs.existsSync(f));
 async function sfxPcm(kind, mood, tier, voice = DEFAULT_VOICE) {
@@ -144,7 +146,7 @@ const server = http.createServer(async (req, res) => {
       return res.end(fs.readFileSync(INDEX));
     }
     if (req.method === 'GET' && url.pathname === '/api/config') {
-      return send(res, 200, { has, ttsDown: ttsDown(), ttsRetryIn: ttsDown() ? ttsRetryIn() : null, llmModel: DEFAULT_MODEL, ttsModel: DEFAULT_TTS_MODEL, ttsVoice: DEFAULT_VOICE, scenario, faces: faceImages(), backgrounds: bgImages(), interjections: INTERJECTIONS, tiers: [0.6, 0.85], sfxReady: sfxStatus().ready.length, fallbackLines: FALLBACK_LINES, voices: scenario.voices || {} });
+      return send(res, 200, { has, ttsDown: ttsDown(), ttsRetryIn: ttsDown() ? ttsRetryIn() : null, llmModel: DEFAULT_MODEL, ttsModel: DEFAULT_TTS_MODEL, ttsVoice: DEFAULT_VOICE, scenario, faces: faceImages(), backgrounds: bgImages(), interjections: INTERJECTIONS, tiers: [0.6, 0.85], sfxReady: sfxStatus(MAIN_VOICE).ready.length, fallbackLines: FALLBACK_LINES, voices: scenario.voices || {} });
     }
     if (req.method === 'GET' && url.pathname.startsWith('/faces/')) {
       const name = path.basename(url.pathname); const ext = path.extname(name).toLowerCase(); const sub = url.pathname.startsWith('/faces/green/') ? 'green' : '';
@@ -251,9 +253,9 @@ const server = http.createServer(async (req, res) => {
 async function prewarmSfx() {
   if (!has.tts || process.env.PREWARM_SFX === '0') return;
   const missing = [];
-  for (const kind of Object.keys(INTERJECTIONS)) for (const mood of Object.keys(INTERJECTIONS[kind])) for (let tier = 0; tier < 3; tier++) if (forSpeech(sfxText(kind, mood, tier)) && !sfxExisting(kind, mood, tier)) missing.push([kind, mood, tier]);
+  for (const kind of Object.keys(INTERJECTIONS)) for (const mood of Object.keys(INTERJECTIONS[kind])) for (let tier = 0; tier < 3; tier++) if (forSpeech(sfxText(kind, mood, tier)) && !sfxExisting(kind, mood, tier, MAIN_VOICE)) missing.push([kind, mood, tier]);
   const gap = Number(process.env.PREWARM_INTERVAL_MS || 8000); // 有料 Tier 1 でも 1 分の回数上限に当たるので 8 秒。無料枠（1 分 3 回）なら 22000 にする
-  for (const text of fixedTexts()) { const mood = fixedMood(text); if (!fs.existsSync(path.join(SFX_BUNDLED, fixedName(text, mood, DEFAULT_VOICE))) && !fs.existsSync(path.join(SFX_DIR, fixedName(text, mood, DEFAULT_VOICE)))) missing.push(['fixed', text, mood]); }
+  for (const text of fixedTexts()) { const mood = fixedMood(text); if (!fs.existsSync(path.join(SFX_BUNDLED, fixedName(text, mood, MAIN_VOICE))) && !fs.existsSync(path.join(SFX_DIR, fixedName(text, mood, MAIN_VOICE)))) missing.push(['fixed', text, mood]); }
   if (missing.length) console.log('  一言の音声を ' + missing.length + ' 個作ります（' + gap / 1000 + ' 秒おき。PREWARM_SFX=0 で止められる・PREWARM_INTERVAL_MS で間隔）');
   for (let i = 0; i < missing.length; i++) {
     if (ttsDown()) { console.log('  声は今日の上限に達しているので、残り ' + (missing.length - i) + ' 本は次回（あと ' + ttsRetryIn() + '）'); break; }
@@ -261,8 +263,8 @@ async function prewarmSfx() {
     const [kind, mood, tier] = missing[i];
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        if (kind === 'fixed') { await fixedPcm(mood, tier, DEFAULT_VOICE); console.log('  決まった台詞の音声を用意: 「' + mood.slice(0, 18) + '…」'); break; }
-        await sfxPcm(kind, mood, tier); console.log('  一言の音声を用意: ' + kind + '/' + mood + '/' + tier + '「' + sfxText(kind, mood, tier) + '」'); break; }
+        if (kind === 'fixed') { await fixedPcm(mood, tier, MAIN_VOICE); console.log('  決まった台詞の音声を用意: 「' + mood.slice(0, 18) + '…」'); break; }
+        await sfxPcm(kind, mood, tier, MAIN_VOICE); console.log('  一言の音声を用意: ' + kind + '/' + mood + '/' + tier + '「' + sfxText(kind, mood, tier) + '」'); break; }
       catch (e) {
         const m = e.message.match(/retry in (?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
         const waitSec = m ? (Number(m[1] || 0) * 3600 + Number(m[2] || 0) * 60 + Number(m[3] || 0)) : 20;
