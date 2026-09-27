@@ -6,7 +6,7 @@
  *
  * 四層: 反射（Jev・/api/reflex）→ 一言（固定の音声・/api/sfx/:mood）→ 言葉（LLM・/api/words）→ 声（Gemini TTS・/api/voice/stream）。
  * 反射で出た本音を、言葉と声にも渡して、時間差はあっても同じ人物の中でそろえる。
- * 各ターンの計測は /api/log で _out/turns.jsonl に追記（入力した台詞も残る。自分で遊ぶ前提）。
+ * 各ターンの計測は /api/log で _out/turns.jsonl に追記（入力した台詞も残る。自分で遊ぶ前提。PUBLIC=1 では残さない）。
  */
 import './lib/env-load.mjs'; // .env を他の import より先に読む（TTS_VOICE などの既定値のため）
 import http from 'node:http';
@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { loadEnv } from './lib/env.mjs';
 import { reflex, judgeReply } from './lib/jev.mjs';
 import { words, DEFAULT_MODEL } from './lib/llm.mjs';
-import { voice, voiceStream, DEFAULT_TTS_MODEL, DEFAULT_VOICE } from './lib/tts.mjs';
+import { voiceStream, DEFAULT_TTS_MODEL, DEFAULT_VOICE } from './lib/tts.mjs';
 import { INTERJECTIONS, MOODS, TIER_INTENSITY, tierOf, FALLBACK_LINES } from './lib/criteria.mjs';
 import { forSpeech } from './lib/tts.mjs';
 import { sfxName, sfxText, fixedName, fixedTexts as fixedTextsOf, fixedMood as fixedMoodOf } from './lib/names.mjs';
@@ -47,27 +47,36 @@ const ttsRetryIn = () => { const s = Math.max(0, Math.round((ttsLimitUntil - Dat
 const RELAY_URL = (process.env.VOICE_RELAY_URL || '').replace(/\/+$/, '');
 const RELAY = process.env.VOICE_RELAY === '1';
 const has = { jev: !!process.env.TYPESAFE_API_KEY, llm: !!process.env.ANTHROPIC_API_KEY, tts: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) || !!RELAY_URL };
-// 中継サーバーの守り: 1 人（IP）あたり 10 分に N 回、全体で 1 日 M 回、文は 200 字まで、任意の合言葉
-const RELAY_PER_IP = Number(process.env.RELAY_PER_IP_10MIN || 30), RELAY_DAILY_CAP = Number(process.env.RELAY_DAILY_CAP || 400), RELAY_TOKEN = process.env.RELAY_TOKEN || '';
-// 反射だけの緩い守り（先読みが 0.35 秒ごとに来るので多め）: 1 人 10 分 600 回
-const reflexHits = new Map();
-function reflexAllow(req) {
-  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
-  const now = Date.now(); const hits = (reflexHits.get(ip) || []).filter((t) => now - t < 600000);
-  if (hits.length >= 600) return '反射の回数が多すぎる。少し待って';
-  hits.push(now); reflexHits.set(ip, hits); return null;
+// 守りの数字: 1 人（IP）あたり 10 分に N 回、全体で 1 日 M 回、文は 200 字まで、任意の合言葉
+// RELAY_* は、中継サーバー（VOICE_RELAY=1）では声を、公開サーバー（PUBLIC=1）では言葉の生成（＝手）を数える。公開サーバーの声は VOICE_* で別に数える
+const RELAY_PER_IP = Number(process.env.RELAY_PER_IP_10MIN || (RELAY ? 40 : 30)), RELAY_DAILY_CAP = Number(process.env.RELAY_DAILY_CAP || (RELAY ? 3000 : 400)), RELAY_TOKEN = process.env.RELAY_TOKEN || '';
+const VOICE_PER_IP = Number(process.env.VOICE_PER_IP_10MIN || 40), VOICE_DAILY_CAP = Number(process.env.VOICE_DAILY_CAP || 800);
+// 相手の IP。置き場（Cloud Run・Render）の中継は X-Forwarded-For の「後ろ」に本当の相手を足す。先頭は相手が自由に書けるので信じない
+// TRUST_PROXY_HOPS: 手前にある中継の数（後ろから何番目が相手か）。公開・中継サーバーの既定は 1、手元は 0（ヘッダを見ない）
+const HOPS = Math.max(0, Number(process.env.TRUST_PROXY_HOPS ?? ((PUBLIC || RELAY) ? 1 : 0)) || 0);
+let hopsNoted = false;
+function clientIp(req) {
+  const sock = req.socket.remoteAddress || '';
+  if (!HOPS) return sock;
+  const xs = String(req.headers['x-forwarded-for'] || '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (!hopsNoted) { hopsNoted = true; console.log('  X-Forwarded-For は ' + xs.length + ' 段。相手は後ろから ' + HOPS + ' 番目として数える（ふつうの相手で段数がこれより多いなら TRUST_PROXY_HOPS をその数に）'); }
+  return xs[xs.length - HOPS] || sock;
 }
-const ipHits = new Map(); let dayKey = '', dayCount = 0;
-function relayAllow(req) {
-  if (RELAY_TOKEN && req.headers['x-relay-token'] !== RELAY_TOKEN) return '合言葉が違う';
-  const today = new Date().toISOString().slice(0, 10); if (today !== dayKey) { dayKey = today; dayCount = 0; ipHits.clear(); }
-  if (dayCount >= RELAY_DAILY_CAP) return '今日の中継の上限（全体）に達した';
-  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
-  const now = Date.now(); const hits = (ipHits.get(ip) || []).filter((t) => now - t < 600000);
-  if (hits.length >= RELAY_PER_IP) return '10 分あたりの回数が多すぎる。少し待って';
-  hits.push(now); ipHits.set(ip, hits); dayCount++;
-  return null;
+/** 回数の守り。perIp: 1 人 10 分の回数、daily: 全体の 1 日の回数（0 なら数えない）。日付が変わったら数え直す */
+function limiter(perIp, daily, what) {
+  const hits = new Map(); let day = '', count = 0;
+  return (req) => {
+    const today = new Date().toISOString().slice(0, 10); if (today !== day) { day = today; count = 0; hits.clear(); }
+    if (daily && count >= daily) return '今日の' + what + 'の上限（全体）に達した';
+    const ip = clientIp(req), now = Date.now(); const mine = (hits.get(ip) || []).filter((t) => now - t < 600000);
+    if (mine.length >= perIp) return what + 'の回数が多すぎる（10 分あたり）。少し待って';
+    mine.push(now); hits.set(ip, mine); count++;
+    return null;
+  };
 }
+const allowTurn = limiter(RELAY_PER_IP, RELAY_DAILY_CAP, '手'); // 公開サーバーの手（言葉の生成）
+const allowVoice = RELAY ? limiter(RELAY_PER_IP, RELAY_DAILY_CAP, '中継') : limiter(VOICE_PER_IP, VOICE_DAILY_CAP, '声'); // 任意の文を読む口（/api/voice/stream）
+const allowReflex = limiter(600, 0, '反射'); // 反射だけの緩い守り（先読みが 0.35 秒ごとに来るので多め）
 /** 遊ぶ人のサーバーから中継サーバーへ（GET は音声を丸ごと、POST は流れをそのまま返す） */
 async function relayFetch(pathAndQuery, init = {}) {
   const headers = { ...(init.headers || {}) }; if (RELAY_TOKEN) headers['x-relay-token'] = RELAY_TOKEN;
@@ -185,15 +194,14 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/healthz') return send(res, 200, { ok: true, relay: true });
       const open = ['/api/voice/stream', '/api/fixed', '/api/sfx-status'];
       if (!open.includes(url.pathname) && !url.pathname.startsWith('/api/sfx/')) return send(res, 404, { error: 'この口は中継していない' });
-      if (url.pathname === '/api/voice/stream') { const why = relayAllow(req); if (why) return send(res, 429, { error: why }); }
-      else if (RELAY_TOKEN && req.headers['x-relay-token'] !== RELAY_TOKEN) return send(res, 401, { error: '合言葉が違う' });
+      if (RELAY_TOKEN && req.headers['x-relay-token'] !== RELAY_TOKEN) return send(res, 401, { error: '合言葉が違う' });
     }
     if (req.method === 'GET' && url.pathname === '/') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(fs.readFileSync(INDEX));
     }
     if (req.method === 'GET' && url.pathname === '/api/config') {
-      return send(res, 200, { has, ttsDown: ttsDown(), ttsRetryIn: ttsDown() ? ttsRetryIn() : null, llmModel: DEFAULT_MODEL, ttsModel: DEFAULT_TTS_MODEL, ttsVoice: DEFAULT_VOICE, scenario, faces: faceImages(), backgrounds: bgImages(), interjections: INTERJECTIONS, tiers: [0.6, 0.85], sfxReady: sfxStatus(MAIN_VOICE).ready.length, fallbackLines: FALLBACK_LINES, voices: scenario.voices || {} });
+      return send(res, 200, { has, logs: !PUBLIC, ttsDown: ttsDown(), ttsRetryIn: ttsDown() ? ttsRetryIn() : null, llmModel: DEFAULT_MODEL, ttsModel: DEFAULT_TTS_MODEL, ttsVoice: DEFAULT_VOICE, scenario, faces: faceImages(), backgrounds: bgImages(), interjections: INTERJECTIONS, tiers: [0.6, 0.85], sfxReady: sfxStatus(MAIN_VOICE).ready.length, fallbackLines: FALLBACK_LINES, voices: scenario.voices || {} });
     }
     if (req.method === 'GET' && url.pathname.startsWith('/faces/')) {
       const name = path.basename(url.pathname); const ext = path.extname(name).toLowerCase(); const sub = url.pathname.startsWith('/faces/green/') ? 'green' : '';
@@ -229,9 +237,13 @@ const server = http.createServer(async (req, res) => {
       } catch (e) { return send(res, 502, { error: e.message }); }
     }
     if (req.method !== 'POST') return send(res, 404, { error: 'not found' });
-    // 公開サーバーの守りは「手」で数える: 言葉の生成（/api/words）だけを 1 人・全体の上限に数える。反射（先読み含む）と声は数えない（反射は 1 回 0.005 円、声は言葉と対）
-    if (PUBLIC && url.pathname === '/api/words') { const why = relayAllow(req); if (why) return send(res, 429, { error: why }); }
-    if (PUBLIC && url.pathname === '/api/reflex') { const why = reflexAllow(req); if (why) return send(res, 429, { error: why }); }
+    // 公開サーバーの守りは「手」で数える: 言葉の生成（/api/words）を 1 人・全体の上限に数える。反射（先読み含む）は緩く（1 回 0.005 円）
+    // 声は手と対だが、口は任意の文を読めるので別に数える（数えないと、作者の鍵で好きな文を好きなだけ読ませられる）
+    if (PUBLIC && url.pathname === '/api/words') { const why = allowTurn(req); if (why) return send(res, 429, { error: why }); }
+    if (PUBLIC && url.pathname === '/api/reflex') { const why = allowReflex(req); if (why) return send(res, 429, { error: why }); }
+    if ((PUBLIC || RELAY) && url.pathname === '/api/voice/stream') { const why = allowVoice(req); if (why) return send(res, 429, { error: why }); }
+    // 公開サーバーでは計測を残さない（遊んだ人の台詞を置き場に書かない）
+    if (PUBLIC && url.pathname === '/api/log') { req.resume(); return send(res, 200, { ok: true, kept: false }); }
     const b = await readBody(req);
 
     if (url.pathname === '/api/reflex') {
@@ -290,12 +302,6 @@ const server = http.createServer(async (req, res) => {
         if (started) { console.error('voice stream 中断:', e.message); return res.end(); }
         return send(res, ttsDown() ? 429 : 502, { error: e.message, down: ttsDown() });
       }
-    }
-    if (url.pathname === '/api/voice') {
-      if (!has.tts) return send(res, 503, { error: 'GEMINI_API_KEY がありません' });
-      const text = clean(b.text, 200);
-      if (!text) return send(res, 400, { error: '読む台詞が空です' });
-      return send(res, 200, await voice({ text, mood: clean(b.mood, 20), kind: b.kind === 'action' ? 'action' : 'line', intensity: typeof b.intensity === 'number' ? b.intensity : null, affection: typeof b.affection === 'number' ? b.affection : null }));
     }
     if (url.pathname === '/api/log') {
       const rec = { at: new Date().toISOString(), ...b };
@@ -370,6 +376,6 @@ server.listen(PORT, HOST, () => {
   if (RELAY) { console.log('#Jevカノ 声の中継サーバー :' + PORT + '（声 ' + DEFAULT_TTS_MODEL + ' / ' + MAIN_VOICE + ' / 1 人 10 分 ' + RELAY_PER_IP + ' 回・1 日 ' + RELAY_DAILY_CAP + ' 回' + (RELAY_TOKEN ? '・合言葉あり' : '') + '）'); return; }
   console.log('#Jevカノ http://127.0.0.1:' + PORT + '/' + (HOST === '0.0.0.0' ? '  ／ 同じ Wi-Fi のスマホから: ' + lanUrls().join(' ') : '  （スマホから遊ぶなら HOST=0.0.0.0）'));
   console.log('  反射 Jev: ' + (has.jev ? 'あり' : 'なし（TYPESAFE_API_KEY）') + ' / 言葉 ' + DEFAULT_MODEL + ': ' + (has.llm ? 'あり' : 'なし（ANTHROPIC_API_KEY）') + ' / 声 ' + DEFAULT_TTS_MODEL + ': ' + (RELAY_URL ? '中継 ' + RELAY_URL : has.tts ? 'あり' : 'なし（GEMINI_API_KEY か GOOGLE_API_KEY）'));
-  console.log('  ログ: ' + path.join(OUT, 'turns.jsonl'));
+  console.log(PUBLIC ? '  公開サーバー: 1 人 10 分 ' + RELAY_PER_IP + ' 手・1 日 ' + RELAY_DAILY_CAP + ' 手 ／ 声は 1 人 10 分 ' + VOICE_PER_IP + ' 回・1 日 ' + VOICE_DAILY_CAP + ' 回 ／ 計測は残さない' : '  ログ: ' + path.join(OUT, 'turns.jsonl'));
   prewarmSfx();
 });

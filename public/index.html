@@ -733,7 +733,7 @@ async function turn(line, action) {
   if (wantInitiative) { const waitMs = rec.tts && rec.tts.kind !== 'none' ? Math.max(400, (playing.size ? (nextAt - ctx().currentTime) * 1000 : 0) + 300) : 900; setTimeout(() => { if (S.turnSeq === mySeq && !S.over && !S.busy) heroineInitiative(rec); }, waitMs); }
   rec.affectionAfter = S.affection;
   S.turns.push(rec);
-  fetch('/api/log', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rec) }).catch(() => {});
+  if (cfg.logs !== false) fetch('/api/log', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rec) }).catch(() => {}); // 公開サーバーには送らない
 
   turnsLeft();
   // 結末は、最後の返事の声が鳴り終わってから（文字と声がずれないように）
@@ -790,7 +790,7 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
   $('models').textContent = '反射 ' + (c.has.jev ? 'jev-latest' : 'なし') + ' ／ 言葉 ' + (c.has.llm ? c.llmModel : 'なし') + ' ／ 声 ' + voiceLabel;
   if (!c.has.tts && !c.sfxReady && !('speechSynthesis' in window)) { $('voice').checked = false; $('voice').disabled = true; }
   if (!c.has.jev) { document.querySelector('input[value=llm]').checked = true; document.querySelector('input[value=reflex]').disabled = true; }
-  $('foot').innerHTML = '台詞は判定のため TypeSafe AI（Jev）と Anthropic（Claude）へ、声を Gemini で出すときは Google へ送られます。' + (PEEK ? '打っている途中の文も Jev に送られます。' : '') + '各ターンの計測は <code>_out/turns.jsonl</code> に残ります。';
+  $('foot').innerHTML = '台詞は判定のため TypeSafe AI（Jev）と Anthropic（Claude）へ、声を Gemini で出すときは Google へ送られます。' + (PEEK ? '打っている途中の文も Jev に送られます。' : '') + (c.logs !== false ? '各ターンの計測は <code>_out/turns.jsonl</code> に残ります。' : 'このサーバーは計測も台詞も残しません。');
   if ('speechSynthesis' in window) speechSynthesis.getVoices();
   setBackground(null);
   prepareCutouts();
