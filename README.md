@@ -67,7 +67,27 @@
 
 - 彼女の声は Gemini の Voice design で作った `voice_…` の ID で、**作った Google のプロジェクトの鍵でしか使えない**（公式に共有の仕組みがない）。あなたの鍵で動かすと、サーバーが「見つからない」を受けて**既製の声 `Leda` に自動で切り替え**、以後はその声で読む（起動ログに 1 行出る）。同梱の一言・冒頭・結末（29 本）は作者の声のまま鳴る。
 - 自分の声を作るなら `node design_voice.mjs --preset` で候補を作って試聴し、気に入った `voice_…` を `.env` の `TTS_VOICE` に。既製の名前（`Leda`・`Kore` など）も指定できる。切り替え先は `TTS_FALLBACK_VOICE`。
-- 声を作者のサーバーが中継する形（あなたの鍵は Jev と Claude だけ、声は作者の鍵で同じ声）は次の版で。
+- **声の中継**: 作者が中継サーバーを立てている間は、`.env` に `VOICE_RELAY_URL=（作者が公開する URL）` を書けば、Gemini の鍵なしで、彼女の声のまま読める（あなたの鍵は Jev と Claude だけ）。中継の URL は記事か Issue で。1 人 10 分 40 回・全体 1 日 3,000 回の上限つき。
+
+### 中継サーバーを自分で立てる（作者向け・同じことをしたい人向け）
+
+同じコードを `VOICE_RELAY=1` で起動すると、声の口（`/api/voice/stream`・`/api/sfx/*`・`/api/fixed`）だけを公開する中継サーバーになる。Jev・Claude・画面は出さない。鍵は Gemini だけ持てばよい。
+
+```bash
+# 手元で試す（別の端末で）
+VOICE_RELAY=1 PORT=8794 GEMINI_API_KEY=... TTS_VOICE=voice_... node server.mjs
+# 遊ぶ側
+VOICE_RELAY_URL=http://127.0.0.1:8794 npm start
+```
+
+Cloud Run に置くなら（gcloud を入れて、課金が有効なプロジェクトで）:
+
+```bash
+gcloud run deploy jev-kano-voice --source . --region asia-northeast1 --allow-unauthenticated \
+  --set-env-vars VOICE_RELAY=1,GEMINI_API_KEY=（鍵）,TTS_VOICE=voice_...,RELAY_DAILY_CAP=3000
+```
+
+出てきた URL を配る。守り: 1 人（IP）10 分 `RELAY_PER_IP_10MIN`（既定 40）・全体 1 日 `RELAY_DAILY_CAP`（既定 3,000）・文は 200 字まで・`RELAY_TOKEN` を両側に書けば合言葉つき。費用は Gemini TTS の分だけ（Tier 2 なら 1 日 100 回の壁は無い）。
 
 ### つまずいたら
 

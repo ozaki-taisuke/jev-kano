@@ -38,7 +38,29 @@ function noteTtsError(e) {
 }
 const ttsDown = () => Date.now() < ttsLimitUntil;
 const ttsRetryIn = () => { const s = Math.max(0, Math.round((ttsLimitUntil - Date.now()) / 1000)); return s >= 3600 ? Math.round(s / 3600) + 'h' : Math.ceil(s / 60) + 'm'; };
-const has = { jev: !!process.env.TYPESAFE_API_KEY, llm: !!process.env.ANTHROPIC_API_KEY, tts: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) };
+// 声の中継。RELAY_URL: この（遊ぶ人の）サーバーは声を作者の中継サーバーに頼む（自分の Gemini の鍵は要らない。声は作者の設計した声のまま）
+// VOICE_RELAY=1: この起動は中継サーバー（声の口だけを公開。Jev・Claude・画面は出さない）。Cloud Run などに置く
+const RELAY_URL = (process.env.VOICE_RELAY_URL || '').replace(/\/+$/, '');
+const RELAY = process.env.VOICE_RELAY === '1';
+const has = { jev: !!process.env.TYPESAFE_API_KEY, llm: !!process.env.ANTHROPIC_API_KEY, tts: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) || !!RELAY_URL };
+// 中継サーバーの守り: 1 人（IP）あたり 10 分に N 回、全体で 1 日 M 回、文は 200 字まで、任意の合言葉
+const RELAY_PER_IP = Number(process.env.RELAY_PER_IP_10MIN || 40), RELAY_DAILY_CAP = Number(process.env.RELAY_DAILY_CAP || 3000), RELAY_TOKEN = process.env.RELAY_TOKEN || '';
+const ipHits = new Map(); let dayKey = '', dayCount = 0;
+function relayAllow(req) {
+  if (RELAY_TOKEN && req.headers['x-relay-token'] !== RELAY_TOKEN) return '合言葉が違う';
+  const today = new Date().toISOString().slice(0, 10); if (today !== dayKey) { dayKey = today; dayCount = 0; ipHits.clear(); }
+  if (dayCount >= RELAY_DAILY_CAP) return '今日の中継の上限（全体）に達した';
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const now = Date.now(); const hits = (ipHits.get(ip) || []).filter((t) => now - t < 600000);
+  if (hits.length >= RELAY_PER_IP) return '10 分あたりの回数が多すぎる。少し待って';
+  hits.push(now); ipHits.set(ip, hits); dayCount++;
+  return null;
+}
+/** 遊ぶ人のサーバーから中継サーバーへ（GET は音声を丸ごと、POST は流れをそのまま返す） */
+async function relayFetch(pathAndQuery, init = {}) {
+  const headers = { ...(init.headers || {}) }; if (RELAY_TOKEN) headers['x-relay-token'] = RELAY_TOKEN;
+  return fetch(RELAY_URL + pathAndQuery, { ...init, headers });
+}
 
 // 顔の画像（任意）: public/faces/{joy,shy,puzzled,upset,calm}.(png|webp|jpg) があれば SVG の代わりに使う
 const FACES_DIR = path.join(here, 'public', 'faces');
@@ -73,11 +95,17 @@ const sfxFile = (kind, mood, tier, voice) => path.join(SFX_DIR, sfxName(kind, mo
 const sfxExisting = (kind, mood, tier, voice) => [path.join(SFX_BUNDLED, sfxName(kind, mood, tier, voice)), sfxFile(kind, mood, tier, voice)].find((f) => fs.existsSync(f));
 async function sfxPcm(kind, mood, tier, voice = DEFAULT_VOICE) {
   if (!forSpeech(sfxText(kind, mood, tier))) return { buf: Buffer.alloc(0), rate: 24000, silent: true }; // 「……」だけの一言は無音
-  if (ttsDown() && !sfxExisting(kind, mood, tier, voice)) throw new Error('声は今日の上限に達しています（あと ' + ttsRetryIn() + '）');
   const key = kind + '_' + mood + '_' + tier + '_' + voice;
   const file = sfxFile(kind, mood, tier, voice);
   const have = sfxExisting(kind, mood, tier, voice);
   if (have) return { buf: fs.readFileSync(have), rate: 24000 };
+  if (RELAY_URL && !RELAY) { // 中継から取って手元に置く
+    const r = await relayFetch('/api/sfx/' + kind + '/' + mood + '/' + tier);
+    if (!r.ok) throw new Error('中継 ' + r.status + ' ' + (await r.text()).slice(0, 120));
+    const buf = Buffer.from(await r.arrayBuffer()); fs.mkdirSync(SFX_DIR, { recursive: true }); fs.writeFileSync(file, buf);
+    return { buf, rate: Number(r.headers.get('X-Sample-Rate')) || 24000 };
+  }
+  if (ttsDown()) throw new Error('声は今日の上限に達しています（あと ' + ttsRetryIn() + '）');
   if (!sfxPending[key]) {
     sfxPending[key] = (async () => {
       const chunks = []; let rate = 24000;
@@ -141,6 +169,13 @@ function turnInput(b) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   try {
+    if (RELAY) { // 中継サーバー: 声の口だけ
+      if (url.pathname === '/healthz') return send(res, 200, { ok: true, relay: true });
+      const open = ['/api/voice/stream', '/api/fixed', '/api/sfx-status'];
+      if (!open.includes(url.pathname) && !url.pathname.startsWith('/api/sfx/')) return send(res, 404, { error: 'この口は中継していない' });
+      if (url.pathname === '/api/voice/stream') { const why = relayAllow(req); if (why) return send(res, 429, { error: why }); }
+      else if (RELAY_TOKEN && req.headers['x-relay-token'] !== RELAY_TOKEN) return send(res, 401, { error: '合言葉が違う' });
+    }
     if (req.method === 'GET' && url.pathname === '/') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(fs.readFileSync(INDEX));
@@ -212,9 +247,19 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/voice/stream') {
       if (!has.tts) return send(res, 503, { error: 'GEMINI_API_KEY がありません' });
-      if (ttsDown()) return send(res, 429, { error: '声は今日の上限に達しています（あと ' + ttsRetryIn() + '）', down: true });
       const text = clean(b.text, 200);
       if (!text) return send(res, 400, { error: '読む台詞が空です' });
+      if (RELAY_URL && !RELAY) { // 遊ぶ人のサーバー: 中継へそのまま流す
+        try {
+          const r = await relayFetch('/api/voice/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, mood: b.mood, kind: b.kind, intensity: b.intensity, affection: b.affection, heroineName: b.heroineName }) });
+          if (!r.ok) { let j = {}; try { j = await r.json(); } catch {} return send(res, r.status === 429 ? 429 : 502, { error: '中継: ' + (j.error || r.status) }); }
+          res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Sample-Rate': r.headers.get('X-Sample-Rate') || '24000', 'X-Channels': r.headers.get('X-Channels') || '1', 'X-TTS-Model': (r.headers.get('X-TTS-Model') || DEFAULT_TTS_MODEL) + ' (relay)' });
+          const reader = r.body.getReader();
+          while (true) { const { done, value } = await reader.read(); if (done) break; res.write(Buffer.from(value)); }
+          return res.end();
+        } catch (e) { return send(res, 502, { error: '中継に届かない: ' + e.message }); }
+      }
+      if (ttsDown()) return send(res, 429, { error: '声は今日の上限に達しています（あと ' + ttsRetryIn() + '）', down: true });
       // 生の PCM（16bit・モノラル）を届いた順に流す。ヘッダにサンプリング周波数。最初の断片の前に失敗したら JSON で返す
       let started = false;
       try {
@@ -251,7 +296,7 @@ const server = http.createServer(async (req, res) => {
 
 // 起動時に反射の一言（5 種）を先に作っておく。無料枠（1 分 3 回）に合わせて 1 つずつ間を空ける
 async function prewarmSfx() {
-  if (!has.tts || process.env.PREWARM_SFX === '0') return;
+  if (!has.tts || process.env.PREWARM_SFX === '0' || (RELAY_URL && !RELAY)) return;
   const missing = [];
   for (const kind of Object.keys(INTERJECTIONS)) for (const mood of Object.keys(INTERJECTIONS[kind])) for (let tier = 0; tier < 3; tier++) if (forSpeech(sfxText(kind, mood, tier)) && !sfxExisting(kind, mood, tier, MAIN_VOICE)) missing.push([kind, mood, tier]);
   const gap = Number(process.env.PREWARM_INTERVAL_MS || 8000); // 有料 Tier 1 でも 1 分の回数上限に当たるので 8 秒。無料枠（1 分 3 回）なら 22000 にする
@@ -282,6 +327,12 @@ async function fixedPcm(text, mood, voice) {
   const name = fixedName(text, mood, voice);
   const have = [path.join(SFX_BUNDLED, name), path.join(SFX_DIR, name)].find((f) => fs.existsSync(f));
   if (have) return { buf: fs.readFileSync(have), rate: 24000 };
+  if (RELAY_URL && !RELAY) {
+    const r = await relayFetch('/api/fixed?text=' + encodeURIComponent(text) + '&mood=' + mood);
+    if (!r.ok) throw new Error('中継 ' + r.status + ' ' + (await r.text()).slice(0, 120));
+    const buf = Buffer.from(await r.arrayBuffer()); fs.mkdirSync(SFX_DIR, { recursive: true }); fs.writeFileSync(path.join(SFX_DIR, name), buf);
+    return { buf, rate: Number(r.headers.get('X-Sample-Rate')) || 24000 };
+  }
   if (ttsDown()) throw new Error('声は今日の上限に達しています（あと ' + ttsRetryIn() + '）');
   if (!fixedPending[name]) {
     fixedPending[name] = (async () => {
@@ -299,9 +350,10 @@ function sfxStatus(voice = DEFAULT_VOICE) {
   return { total: all.length, ready, voice };
 }
 
-server.listen(PORT, '127.0.0.1', () => {
+server.listen(PORT, RELAY ? '0.0.0.0' : '127.0.0.1', () => {
+  if (RELAY) { console.log('#Jevカノ 声の中継サーバー :' + PORT + '（声 ' + DEFAULT_TTS_MODEL + ' / ' + MAIN_VOICE + ' / 1 人 10 分 ' + RELAY_PER_IP + ' 回・1 日 ' + RELAY_DAILY_CAP + ' 回' + (RELAY_TOKEN ? '・合言葉あり' : '') + '）'); return; }
   console.log('#Jevカノ http://127.0.0.1:' + PORT + '/');
-  console.log('  反射 Jev: ' + (has.jev ? 'あり' : 'なし（TYPESAFE_API_KEY）') + ' / 言葉 ' + DEFAULT_MODEL + ': ' + (has.llm ? 'あり' : 'なし（ANTHROPIC_API_KEY）') + ' / 声 ' + DEFAULT_TTS_MODEL + ': ' + (has.tts ? 'あり' : 'なし（GEMINI_API_KEY か GOOGLE_API_KEY）'));
+  console.log('  反射 Jev: ' + (has.jev ? 'あり' : 'なし（TYPESAFE_API_KEY）') + ' / 言葉 ' + DEFAULT_MODEL + ': ' + (has.llm ? 'あり' : 'なし（ANTHROPIC_API_KEY）') + ' / 声 ' + DEFAULT_TTS_MODEL + ': ' + (RELAY_URL ? '中継 ' + RELAY_URL : has.tts ? 'あり' : 'なし（GEMINI_API_KEY か GOOGLE_API_KEY）'));
   console.log('  ログ: ' + path.join(OUT, 'turns.jsonl'));
   prewarmSfx();
 });
