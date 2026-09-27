@@ -348,6 +348,13 @@ function memGet() { try { return JSON.parse(localStorage.getItem(MEM_KEY) || '{}
 function memSet(m) { try { localStorage.setItem(MEM_KEY, JSON.stringify(m)); } catch {} }
 function memMark(episodeId, kind) { const m = memGet(); m.seen = m.seen || {}; m.seen[episodeId] = m.seen[episodeId] || {}; m.seen[episodeId][kind] = (m.seen[episodeId][kind] || 0) + 1; if (kind === 'perfect') m.perfect = true; memSet(m); }
 function episodeDone(episodeId) { const s = (memGet().seen || {})[episodeId]; return !!s && Object.keys(s).length > 0; }
+/** 鍵のかかった はじまり が開いているか: パーフェクトを一度出す、または 鍵のない はじまり すべてで「達成」以上。?debug=1 のときは選べる（確認用） */
+function episodesUnlocked(eps, mem = memGet()) {
+  if (mem.perfect || document.body.classList.contains('debug')) return true;
+  const open = eps.filter((e) => !e.locked); if (!open.length) return false;
+  return open.every((e) => { const s = (mem.seen || {})[e.id] || {}; return (s.good || 0) + (s.perfect || 0) > 0; });
+}
+const UNLOCK_HOW = 'パーフェクト、または 4 つすべてで達成';
 let cfg, S;
 
 // ---- 立ち絵: 背景が一様な緑の絵を、画面側で透明にして背景の上に立たせる ----
@@ -767,13 +774,16 @@ function ending(force) {
   if (kind === 'perfect') setFace('joy', '', { strong: true });
   S.over = true; S.busy = true; $('send').disabled = true;
   if (kind === 'leave') { add('her', e.leave.text); S.history.push({ role: 'assistant', text: e.leave.text }); }
+  const eps0 = (cfg.scenario.episodes || []); const wasUnlocked = episodesUnlocked(eps0);
   if (S.episode) memMark(S.episode.id, kind);
   $('endTitle').textContent = (S.episode ? S.episode.title + '：' : '') + { perfect:'パーフェクト', good:'達成', normal:'ふつう', bad:'失敗', leave:'失敗（帰ってしまった）' }[kind] + (document.body.classList.contains('debug') ? '（好感度 ' + S.affection + '）' : '');
   $('endText').textContent = e[kind].text;
   speakFixed(e[kind].text, kind === 'perfect' || kind === 'good' ? 'joy' : kind === 'normal' ? 'calm' : 'upset');
   const t = S.turns, avg = (k) => { const xs = t.map((r) => r[k]).filter((x) => x != null); return xs.length ? sec(xs.reduce((a, b) => a + b, 0) / xs.length) : '—'; };
-  const eps = (cfg.scenario.episodes || []); const mem = memGet(); const seenN = eps.filter((e) => episodeDone(e.id)).length; const openN = eps.filter((e) => !e.locked || mem.perfect).length;
-  $('endNote').textContent = '開いた話題: ' + (S.topics.length ? S.topics.map((t) => TOPIC_JA[t] || t).join('・') : 'なし') + ' ／ 見たはじまり ' + seenN + '/' + openN + (kind === 'perfect' && eps.some((e) => e.locked) ? ' ／ 新しいはじまりが開いた' : seenN < openN ? ' ／ まだ見ていないはじまりがある' : '');
+  const eps = eps0; const unlocked = episodesUnlocked(eps); const seenN = eps.filter((e) => episodeDone(e.id)).length; const openN = eps.filter((e) => !e.locked || unlocked).length;
+  const goodN = eps.filter((e) => !e.locked).filter((e) => { const s = (memGet().seen || {})[e.id] || {}; return (s.good || 0) + (s.perfect || 0) > 0; }).length;
+  $('endNote').textContent = '開いた話題: ' + (S.topics.length ? S.topics.map((t) => TOPIC_JA[t] || t).join('・') : 'なし') + ' ／ 見たはじまり ' + seenN + '/' + openN
+    + (!wasUnlocked && unlocked && eps.some((e) => e.locked) ? ' ／ 新しいはじまりが開いた' : seenN < openN ? ' ／ まだ見ていないはじまりがある' : !unlocked && eps.some((e) => e.locked) ? ' ／ 5 つ目は ' + UNLOCK_HOW + ' で開く（達成 ' + goodN + '/' + eps.filter((e) => !e.locked).length + '）' : '');
   $('endStats').textContent = '顔の平均 ' + avg('tFace') + (t.some((r) => r.tSfx != null) ? ' ・ 一言の平均 ' + avg('tSfx') : '') + ' ・ 言葉の平均 ' + avg('tWords') + (t.some((r) => r.tVoice != null) ? ' ・ 声の平均 ' + avg('tVoice') : '');
   $('ending').style.display = 'flex';
 }
@@ -825,10 +835,11 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
   const renderEpisodes = () => {
     epSel.innerHTML = ''; const mem = memGet();
     const auto = document.createElement('option'); auto.value = ''; auto.textContent = 'まだ見ていないものから'; epSel.appendChild(auto);
-    for (const ep of (c.scenario.episodes || [])) { const o = document.createElement('option'); o.value = ep.id; const locked = ep.locked && !mem.perfect; o.disabled = !!locked; o.textContent = (locked ? '？？？（パーフェクトで開く）' : ep.title) + (episodeDone(ep.id) ? ' ✓' : ''); epSel.appendChild(o); }
+    const unlocked = episodesUnlocked(c.scenario.episodes || [], mem);
+    for (const ep of (c.scenario.episodes || [])) { const o = document.createElement('option'); o.value = ep.id; const locked = ep.locked && !unlocked; o.disabled = !!locked; o.textContent = (locked ? '？？？（' + UNLOCK_HOW + 'で開く）' : ep.title) + (episodeDone(ep.id) ? ' ✓' : ''); epSel.appendChild(o); }
   };
   renderEpisodes(); window.__renderEpisodes = renderEpisodes;
-  const pickEpisode = () => { const eps = (c.scenario.episodes || []); const mem = memGet(); if (epSel.value) return eps.find((e) => e.id === epSel.value); const open = eps.filter((e) => !e.locked || mem.perfect); return open.find((e) => !episodeDone(e.id)) || open[Math.floor(Math.random() * open.length)] || eps[0]; };
+  const pickEpisode = () => { const eps = (c.scenario.episodes || []); const mem = memGet(); if (epSel.value) return eps.find((e) => e.id === epSel.value); const unlocked = episodesUnlocked(eps, mem); const open = eps.filter((e) => !e.locked || unlocked); return open.find((e) => !episodeDone(e.id)) || open[Math.floor(Math.random() * open.length)] || eps[0]; };
   $('titleGoal').textContent = '目標: ' + (c.scenario.goal || '') + ' 失敗: 親しさが下がりきる、または彼女が帰ってしまう。';
   try { const saved = localStorage.getItem('reflex_galge_player'); if (saved) $('playerName').value = saved; } catch {}
   S = null;
