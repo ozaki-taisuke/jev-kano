@@ -27,7 +27,7 @@
   .hud { position:fixed; left:0; right:0; top:0; z-index:6; display:flex; flex-wrap:wrap; row-gap:4px; align-items:center; gap:10px; padding:8px 14px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.5); pointer-events:none; }
   .hud > * { pointer-events:auto; white-space:nowrap; }
   @media (max-width:900px) { .hud { gap:6px; padding:6px 8px; } .hud .gauge .bar { width:70px; } .hud .stat, .hud button, .hud label, .hud .gauge { padding-left:8px; padding-right:8px; } }
-  @media (max-width:600px) { .hud { flex-wrap:wrap; row-gap:4px; } .hud .mini { display:none; } .hud .sp { display:none; } .hud .gauge .bar { width:56px; } .hud .stat, .hud button, .hud label, .hud .gauge { font-size:11px; padding:3px 8px; } .clock { width:200px; top:auto; bottom:calc(var(--win) + 6px); right:6px; } }
+  @media (max-width:600px) { .hud { flex-wrap:wrap; row-gap:4px; } .hud .mini { display:none; } .hud .sp { display:none; } .hud .gauge .bar { width:56px; } .hud .stat, .hud button, .hud label, .hud .gauge { font-size:11px; padding:3px 8px; } }
   .hud .mini { height:34px; width:auto; --sw1:22; --sw2:10; filter:drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
   .hud .sp { flex:1; }
   .hud .gauge { display:flex; align-items:center; gap:8px; font-size:12px; background:rgba(30,25,40,.45); border:1px solid rgba(255,255,255,.25); border-radius:999px; padding:4px 12px 4px 10px; backdrop-filter:blur(6px); }
@@ -38,7 +38,7 @@
   .hud button, .hud label { font:inherit; font-size:12px; color:#fff; background:rgba(30,25,40,.45); border:1px solid rgba(255,255,255,.3); border-radius:999px; padding:4px 12px; cursor:pointer; backdrop-filter:blur(6px); display:inline-flex; align-items:center; gap:5px; }
   .hud button:hover, .hud label:hover { border-color:#fff; }
   .hud .models { font-size:11px; opacity:.85; }
-  .notice { position:fixed; left:50%; top:52px; transform:translateX(-50%); z-index:6; font-size:12px; color:#fff; background:rgba(199,125,18,.85); border-radius:999px; padding:4px 12px; max-width:90vw; text-align:center; }
+  .notice { position:fixed; left:50%; top:calc(var(--hud, 44px) + 8px); transform:translateX(-50%); z-index:6; font-size:12px; color:#fff; background:rgba(199,125,18,.85); border-radius:999px; padding:4px 12px; max-width:90vw; text-align:center; }
   .notice:empty { display:none; }
   /* 立ち絵 */
   .stage { position:fixed; z-index:2; width:var(--stage); height:var(--stage); left:max(4vw, calc(50vw - 560px)); bottom:calc(var(--win) - 12px); }
@@ -58,7 +58,7 @@
   .lid { animation:blink 4.2s ease-in-out infinite; transform-box:fill-box; transform-origin:50% 40%; }
   @keyframes blink { 0%,95.5%,100% { transform:scaleY(1); } 97.5% { transform:scaleY(.06); } }
   /* メッセージ窓（下） */
-  .msgwin { position:fixed; left:50%; bottom:10px; transform:translateX(-50%); width:min(1120px, calc(100vw - 20px)); z-index:5; background:var(--panel); border:1px solid rgba(255,255,255,.8); box-shadow:0 10px 40px rgba(0,0,0,.35), inset 0 0 0 1px var(--line); border-radius:18px; backdrop-filter:blur(10px); padding:14px 18px 12px; }
+  .msgwin { position:fixed; left:50%; bottom:calc(var(--clock, 30px) + 8px); transform:translateX(-50%); width:min(1120px, calc(100vw - 20px)); z-index:5; background:var(--panel); border:1px solid rgba(255,255,255,.8); box-shadow:0 10px 40px rgba(0,0,0,.35), inset 0 0 0 1px var(--line); border-radius:18px; backdrop-filter:blur(10px); padding:14px 18px 12px; }
   .msgwin .prev { font-size:12px; color:var(--sub); height:1.5em; line-height:1.5; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .msgwin .plate { display:inline-block; font-family:var(--logo); font-weight:700; font-size:14px; letter-spacing:.08em; color:#fff; background:linear-gradient(90deg, var(--accent), #ff6f91); border-radius:999px; padding:2px 14px; margin-bottom:6px; box-shadow:0 2px 6px rgba(232,131,74,.35); }
   .msgwin .plate.me { background:linear-gradient(90deg, #5aa0e0, var(--jev)); box-shadow:0 2px 6px rgba(59,130,198,.35); }
@@ -120,18 +120,23 @@
   body.debug .dbg.row { display:flex !important; }
   body.debug .meta.dbg { display:flex !important; }
   body.debug label.dbg { display:inline-flex !important; }
-  .clock { position:fixed; right:12px; top:52px; z-index:6; width:230px; font-variant-numeric:tabular-nums; font-size:12px; color:#fff; background:rgba(30,25,40,.6); border:1px solid rgba(255,255,255,.25); border-radius:12px; padding:8px 10px; backdrop-filter:blur(6px); }
-  .clock .row { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:1px 0; }
-  .clock .lbl { min-width:3.5em; }
-  .clock .val { font-size:13px; min-width:4.5em; text-align:right; }
+  /* この手の応答時間（台詞ウインドウとは別。右上の HUD の下） */
+  .clock { position:fixed; left:0; right:0; bottom:0; z-index:6; display:flex; flex-wrap:wrap; justify-content:center; gap:3px 14px; font-variant-numeric:tabular-nums; font-size:12px; color:#fff; background:rgba(30,25,40,.72); border-top:1px solid rgba(255,255,255,.18); padding:4px 12px; backdrop-filter:blur(6px); transition:opacity .3s; }
+  .clock.idle { opacity:.55; }
+  .clock .seg { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+  .clock .who { font-family:var(--logo); font-weight:700; font-size:11px; letter-spacing:.04em; padding:0 7px; border-radius:999px; background:rgba(255,255,255,.14); }
+  .clock .who.jev { color:#bfe6ff; } .clock .who.llm { color:#ffd0a8; } .clock .who.tts { color:#eee; }
+  .clock .lbl { opacity:.85; }
+  .clock .val { font-size:13px; min-width:3.6em; text-align:right; }
   .clock .val.run { color:#ffd27a; } .clock .val.jev { color:#9fd3ff; } .clock .val.llm { color:#ffb37a; }
-  .clock .track { flex:1; height:6px; background:rgba(255,255,255,.2); border-radius:3px; position:relative; overflow:hidden; }
-  .clock .track i { position:absolute; left:0; top:0; height:100%; width:0; background:currentColor; opacity:.8; }
-  .mood { font-size:12px; color:#fff; margin-top:4px; }
+  .clock .track { width:46px; height:5px; background:rgba(255,255,255,.2); border-radius:3px; position:relative; overflow:hidden; }
+  .clock .track i { position:absolute; left:0; top:0; height:100%; width:0; background:currentColor; opacity:.85; }
+  .clock .mood { flex-basis:100%; text-align:right; font-size:12px; color:#fff; }
   .mood b { color:#9fd3ff; font-weight:600; } .mood b.llm { color:#ffb37a; }
-  .toast { position:fixed; left:50%; top:88px; transform:translateX(-50%); background:#fff; border:1px solid var(--accent2); color:var(--accent2); border-radius:999px; padding:6px 14px; font-size:13px; z-index:40; animation:toastIn 2.6s ease-out forwards; }
+  @media (max-width:600px) { .clock { gap:3px 8px; padding:3px 8px; } .clock .track { display:none; } }
+  .toast { position:fixed; left:50%; top:calc(var(--hud, 44px) + 44px); transform:translateX(-50%); background:#fff; border:1px solid var(--accent2); color:var(--accent2); border-radius:999px; padding:6px 14px; font-size:13px; z-index:40; animation:toastIn 2.6s ease-out forwards; }
   @keyframes toastIn { 0% { opacity:0; transform:translate(-50%,-6px); } 12% { opacity:1; transform:translate(-50%,0); } 80% { opacity:1; } 100% { opacity:0; } }
-  .foot { position:fixed; left:0; right:0; bottom:0; color:#fff; font-size:11px; padding:4px 10px; background:rgba(0,0,0,.4); z-index:7; }
+  .foot { position:fixed; left:0; right:0; bottom:var(--clock, 30px); color:#fff; font-size:11px; padding:4px 10px; background:rgba(0,0,0,.4); z-index:7; }
   /* 開始画面 */
   body.on-title .hud, body.on-title .msgwin, body.on-title .stage, body.on-title .clock, body.on-title .notice { display:none !important; }
   .title { position:fixed; inset:0; z-index:20; overflow:auto; display:flex; flex-direction:column; align-items:center; padding:min(6vh, 48px) 16px 24px; background:linear-gradient(180deg, rgba(20,14,26,.25), rgba(20,14,26,.55)); }
@@ -191,12 +196,12 @@
   <span id="sfxState" style="font-size:11px;color:#ffd27a"></span>
 </div>
 <div class="notice" id="notice"></div>
-<div class="clock dbg" id="clock">
-  <div class="row"><span class="lbl">顔</span><span class="val jev" id="cFace">—</span><span class="track" style="color:#9fd3ff"><i id="tFace"></i></span></div>
-  <div class="row"><span class="lbl">一言</span><span class="val jev" id="cSfx">—</span><span class="track" style="color:#9fd3ff"><i id="tSfx"></i></span></div>
-  <div class="row"><span class="lbl">言葉</span><span class="val llm" id="cWords">—</span><span class="track" style="color:#ffb37a"><i id="tWords"></i></span></div>
-  <div class="row"><span class="lbl">声</span><span class="val" id="cVoice">—</span><span class="track" style="color:#ddd"><i id="tVoice"></i></span></div>
-  <div class="mood" id="moodText">&nbsp;</div>
+<div class="clock idle" id="clock" title="この手の応答時間。反射は Jev、言葉は Claude、声は Gemini">
+  <span class="seg"><b class="who jev">Jev</b><span class="lbl">反射</span><span class="val jev" id="cFace">—</span><span class="track" style="color:#9fd3ff"><i id="tFace"></i></span></span>
+  <span class="seg dbg"><b class="who jev">一言</b><span class="val jev" id="cSfx">—</span><span class="track" style="color:#9fd3ff"><i id="tSfx"></i></span></span>
+  <span class="seg"><b class="who llm">Claude</b><span class="lbl">言葉</span><span class="val llm" id="cWords">—</span><span class="track" style="color:#ffb37a"><i id="tWords"></i></span></span>
+  <span class="seg"><b class="who tts">Gemini</b><span class="lbl">声</span><span class="val" id="cVoice">—</span><span class="track" style="color:#ddd"><i id="tVoice"></i></span></span>
+  <div class="mood dbg" id="moodText">&nbsp;</div>
 </div>
 
 <div class="stage" id="stage">
@@ -405,8 +410,8 @@ function renderWin() {
   txt.innerHTML = last.innerHTML;
 }
 new MutationObserver(renderWin).observe($('log'), { childList: true, subtree: true, characterData: true });
-function fitWin() { document.documentElement.style.setProperty('--win', ($('win').offsetHeight + 10) + 'px'); }
-new ResizeObserver(fitWin).observe($('win'));
+function fitWin() { document.documentElement.style.setProperty('--clock', $('clock').offsetHeight + 'px'); document.documentElement.style.setProperty('--win', ($('win').offsetHeight + $('clock').offsetHeight + 18) + 'px'); document.documentElement.style.setProperty('--hud', document.querySelector('.hud').offsetHeight + 'px'); }
+new ResizeObserver(fitWin).observe($('win')); new ResizeObserver(fitWin).observe(document.querySelector('.hud')); new ResizeObserver(fitWin).observe($('clock'));
 
 async function post(path, body) {
   const r = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
@@ -416,7 +421,7 @@ async function post(path, body) {
 // ---- ストップウォッチ（送った瞬間から数え、顔・一言・言葉・声が出た時刻を止める） ----
 const CLOCK_MAX = 6000, KEYS = ['Face', 'Sfx', 'Words', 'Voice'];
 const clock = { t0: 0, marks: {} };
-function clockStart() { clock.t0 = performance.now(); clock.marks = {}; for (const k of KEYS) { $('c' + k).textContent = '0.00 s'; $('c' + k).classList.add('run'); $('t' + k).style.width = '0%'; } tick(); }
+function clockStart() { $('clock').classList.remove('idle'); clock.t0 = performance.now(); clock.marks = {}; for (const k of KEYS) { $('c' + k).textContent = '0.00 s'; $('c' + k).classList.add('run'); $('t' + k).style.width = '0%'; } tick(); }
 function tick() {
   const el = performance.now() - clock.t0;
   for (const k of KEYS) if (clock.marks[k] == null) { $('c' + k).textContent = sec(el); $('t' + k).style.width = Math.min(100, el / CLOCK_MAX * 100) + '%'; }
@@ -583,6 +588,7 @@ function reset() {
   turnsLeft();
   chips();
   for (const k of KEYS) { $('c' + k).textContent = '—'; $('c' + k).classList.remove('run'); $('t' + k).style.width = '0%'; }
+  $('clock').classList.add('idle');
   $('ending').style.display = 'none';
   // 状況の説明: 彼女が見えた状態で、主人公のモノローグ（導入 → その日の場面）。クリックで彼女の第一声へ
   const mono = (cfg.scenario.intro || '').replace(/\{name\}/g, S.heroineName);
@@ -692,7 +698,7 @@ async function turn(line, action) {
   if ($('voice').checked && w && lineVoice) {
     try {
       rec.tts = await speak(lineVoice, j ? j.mood : w.mood, () => { rec.tVoice = Math.round(performance.now() - t0); clockMark('Voice', rec.tVoice); }, { kind: action ? 'action' : 'line', intensity: j ? (j.moodProbs[j.mood] || null) : null, affection: S.affection });
-      if (rec.tts && rec.tts.kind === 'none') clockMark('Voice', null); // 字幕モード: 声の時間は出さない
+      if (rec.tts && rec.tts.kind === 'none') { clockMark('Voice', null); $('cVoice').textContent = '字幕'; } // 字幕モード: 声の時間は出さない
       else if (rec.tVoice == null) { rec.tVoice = Math.round(performance.now() - t0); clockMark('Voice', rec.tVoice); }
     } catch (e) { rec.ttsError = e.message; clockMark('Voice', null); }
     metaEl.innerHTML = tl();
