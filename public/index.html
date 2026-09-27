@@ -168,6 +168,7 @@
   <button type="button" id="logBtn" title="これまでの会話">ログ</button>
   <label id="voiceLabel"><input type="checkbox" id="voice" checked> <span id="voiceText">声</span></label>
   <button type="button" id="helpBtn" title="遊び方">？</button>
+  <button type="button" id="quitBtn" title="タイトルに戻る">やめる</button>
   <label class="dbg"><input type="checkbox" id="debugToggle" checked> デバッグ</label>
   <span id="sfxState" style="font-size:11px;color:#ffd27a"></span>
 </div>
@@ -729,7 +730,9 @@ function ending(force) {
 $('form').addEventListener('submit', (ev) => { ev.preventDefault(); turn($('input').value); });
 $('input').addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); if (S && S.waitOpen && !$('input').value.trim()) { openingLine(); return; } turn($('input').value); } });
 $('input').addEventListener('input', schedulePeek);
-$('again').onclick = () => { $('ending').style.display = 'none'; $('title').style.display = 'flex'; document.body.classList.add('on-title'); if (typeof window.__renderEpisodes === 'function') window.__renderEpisodes(); };
+function toTitle() { $('ending').style.display = 'none'; $('backlog').style.display = 'none'; $('help').style.display = 'none'; $('title').style.display = 'flex'; document.body.classList.add('on-title'); if (S) { S.over = true; S.busy = true; } peekSeq++; if (typeof window.__renderEpisodes === 'function') window.__renderEpisodes(); }
+$('again').onclick = toTitle;
+$('quitBtn').onclick = () => { if (!S || S.over || confirm('タイトルに戻りますか？ 今回の分は残りません（セーブは次の版で）')) toTitle(); };
 $('logBtn').onclick = () => { $('backlog').style.display = 'flex'; scrollDown(); };
 $('backlogClose').onclick = () => { $('backlog').style.display = 'none'; };
 for (const id of ['backlog', 'help']) $(id).addEventListener('click', (ev) => { if (ev.target === $(id)) $(id).style.display = 'none'; });
