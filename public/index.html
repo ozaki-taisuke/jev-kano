@@ -53,12 +53,10 @@
   .stage svg, .stage img.photo { width:100%; height:100%; object-fit:contain; display:block; filter:drop-shadow(0 10px 18px rgba(0,0,0,.35)); }
   .stage img.photo.framed { border-radius:18px; border:2px solid rgba(255,255,255,.75); box-shadow:0 12px 30px rgba(0,0,0,.35); }
   #photoZones { position:absolute; inset:0; }
+  /* 触れる場所は、名前も色分けも出さない（乗せるとかすかに光るだけ）。どこが何かは、触れたあとの彼女の反応で分かる */
   .pz { position:absolute; border-radius:45%; cursor:pointer; background:radial-gradient(circle, rgba(255,255,255,.9), rgba(255,255,255,0) 70%); opacity:0; transition:opacity .15s; }
   .pz:hover { opacity:.35; }
-  .pz.warn:hover { background:radial-gradient(circle, rgba(255,107,107,.9), rgba(255,107,107,0) 70%); }
   .zone { fill:#fff; fill-opacity:0; transition:fill-opacity .15s; } .zone:hover { fill-opacity:.16; }
-  .zoneTip { position:absolute; left:50%; bottom:8px; transform:translateX(-50%); font-size:12px; color:var(--jev); background:rgba(255,253,248,.94); border:1px solid var(--line); border-radius:999px; padding:2px 10px; pointer-events:none; opacity:0; transition:opacity .15s; white-space:nowrap; }
-  .zoneTip.on { opacity:1; }
   .pop { animation:pop .28s cubic-bezier(.2,.9,.3,1.4); }
   @keyframes pop { 0% { transform:scale(.985) translateY(3px); } 100% { transform:scale(1) translateY(0); } }
   @media (max-width:800px) { .pop { animation-name:popM; } @keyframes popM { 0% { transform:translateX(-50%) scale(.985); } 100% { transform:translateX(-50%) scale(1); } } }
@@ -256,26 +254,25 @@
     <g id="sparkle" opacity="0" fill="#fff2a8"><path d="M78 -46 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3 Z"/><path d="M-88 4 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z"/></g>
     <path id="dots" d="M60 -52 a3 3 0 1 0 .1 0 M70 -58 a3 3 0 1 0 .1 0 M80 -64 a3 3 0 1 0 .1 0" fill="#b7abcc" opacity="0"/>
     <g id="zones" style="cursor:pointer">
-      <path class="zone" data-act="pat" data-label="頭をなでる" d="M-76 -36 Q-72 -110 0 -112 Q72 -110 76 -36 Q40 -58 0 -56 Q-40 -58 -76 -36 Z"/>
-      <path class="zone" data-act="flick" data-label="デコピン" d="M-50 -56 Q0 -70 50 -56 L46 -30 Q0 -40 -46 -30 Z"/>
-      <ellipse class="zone" data-act="poke" data-label="頬をつつく" cx="-48" cy="44" rx="20" ry="17"/>
-      <ellipse class="zone" data-act="poke" data-label="頬をつつく" cx="48" cy="44" rx="20" ry="17"/>
-      <ellipse class="zone" data-act="shoulder" data-label="肩に触れる" cx="-72" cy="114" rx="22" ry="14"/>
-      <ellipse class="zone" data-act="shoulder" data-label="肩に触れる" cx="72" cy="114" rx="22" ry="14"/>
-      <ellipse class="zone" data-act="chest" data-label="襟元に触れる" cx="0" cy="114" rx="20" ry="12"/>
+      <path class="zone" data-act="pat" d="M-76 -36 Q-72 -110 0 -112 Q72 -110 76 -36 Q40 -58 0 -56 Q-40 -58 -76 -36 Z"/>
+      <path class="zone" data-act="flick" d="M-50 -56 Q0 -70 50 -56 L46 -30 Q0 -40 -46 -30 Z"/>
+      <ellipse class="zone" data-act="poke" cx="-48" cy="44" rx="20" ry="17"/>
+      <ellipse class="zone" data-act="poke" cx="48" cy="44" rx="20" ry="17"/>
+      <ellipse class="zone" data-act="shoulder" cx="-72" cy="114" rx="22" ry="14"/>
+      <ellipse class="zone" data-act="shoulder" cx="72" cy="114" rx="22" ry="14"/>
+      <ellipse class="zone" data-act="chest" cx="0" cy="114" rx="20" ry="12"/>
     </g>
   </svg>
   <img class="photo" id="facePhoto" alt="" style="display:none">
   <div id="photoZones" style="display:none">
-    <div class="pz" data-act="pat" data-label="頭をなでる" style="left:20%;top:0;width:60%;height:22%"></div>
-    <div class="pz" data-act="flick" data-label="デコピン" style="left:33%;top:22%;width:34%;height:12%"></div>
-    <div class="pz" data-act="poke" data-label="頬をつつく" style="left:24%;top:38%;width:18%;height:16%"></div>
-    <div class="pz" data-act="poke" data-label="頬をつつく" style="left:58%;top:38%;width:18%;height:16%"></div>
-    <div class="pz" data-act="shoulder" data-label="肩に触れる" style="left:4%;top:66%;width:24%;height:22%"></div>
-    <div class="pz" data-act="shoulder" data-label="肩に触れる" style="left:72%;top:66%;width:24%;height:22%"></div>
-    <div class="pz warn" data-act="chest" data-label="襟元に触れる" style="left:36%;top:72%;width:28%;height:26%"></div>
+    <div class="pz" data-act="pat" style="left:20%;top:0;width:60%;height:22%"></div>
+    <div class="pz" data-act="flick" style="left:33%;top:22%;width:34%;height:12%"></div>
+    <div class="pz" data-act="poke" style="left:24%;top:38%;width:18%;height:16%"></div>
+    <div class="pz" data-act="poke" style="left:58%;top:38%;width:18%;height:16%"></div>
+    <div class="pz" data-act="shoulder" style="left:4%;top:66%;width:24%;height:22%"></div>
+    <div class="pz" data-act="shoulder" style="left:72%;top:66%;width:24%;height:22%"></div>
+    <div class="pz" data-act="chest" style="left:36%;top:72%;width:28%;height:26%"></div>
   </div>
-  <div class="zoneTip" id="zoneTip"></div>
 </div>
 <span id="name" hidden>—</span>
 
@@ -643,8 +640,6 @@ function chips() {
 }
 // 顔の部位 → 行為
 for (const z of document.querySelectorAll('.zone, .pz')) {
-  z.addEventListener('mouseenter', () => { $('zoneTip').textContent = z.dataset.label; $('zoneTip').classList.add('on'); });
-  z.addEventListener('mouseleave', () => $('zoneTip').classList.remove('on'));
   z.addEventListener('click', () => { const act = (cfg.scenario.actions || []).find((x) => x.id === z.dataset.act); if (act) turn('', act); });
 }
 
@@ -733,7 +728,7 @@ async function turn(line, action) {
   if (wantInitiative) { const waitMs = rec.tts && rec.tts.kind !== 'none' ? Math.max(400, (playing.size ? (nextAt - ctx().currentTime) * 1000 : 0) + 300) : 900; setTimeout(() => { if (S.turnSeq === mySeq && !S.over && !S.busy) heroineInitiative(rec); }, waitMs); }
   rec.affectionAfter = S.affection;
   S.turns.push(rec);
-  fetch('/api/log', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rec) }).catch(() => {});
+  if (cfg.logs !== false) fetch('/api/log', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rec) }).catch(() => {}); // 公開サーバーには送らない
 
   turnsLeft();
   // 結末は、最後の返事の声が鳴り終わってから（文字と声がずれないように）
@@ -790,7 +785,7 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
   $('models').textContent = '反射 ' + (c.has.jev ? 'jev-latest' : 'なし') + ' ／ 言葉 ' + (c.has.llm ? c.llmModel : 'なし') + ' ／ 声 ' + voiceLabel;
   if (!c.has.tts && !c.sfxReady && !('speechSynthesis' in window)) { $('voice').checked = false; $('voice').disabled = true; }
   if (!c.has.jev) { document.querySelector('input[value=llm]').checked = true; document.querySelector('input[value=reflex]').disabled = true; }
-  $('foot').innerHTML = '台詞は判定のため TypeSafe AI（Jev）と Anthropic（Claude）へ、声を Gemini で出すときは Google へ送られます。' + (PEEK ? '打っている途中の文も Jev に送られます。' : '') + '各ターンの計測は <code>_out/turns.jsonl</code> に残ります。';
+  $('foot').innerHTML = '台詞は判定のため TypeSafe AI（Jev）と Anthropic（Claude）へ、声を Gemini で出すときは Google へ送られます。' + (PEEK ? '打っている途中の文も Jev に送られます。' : '') + (c.logs !== false ? '各ターンの計測は <code>_out/turns.jsonl</code> に残ります。' : 'このサーバーは計測も台詞も残しません。');
   if ('speechSynthesis' in window) speechSynthesis.getVoices();
   setBackground(null);
   prepareCutouts();

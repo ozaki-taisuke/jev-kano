@@ -71,7 +71,7 @@
 
 - 彼女の声は Gemini の Voice design で作った `voice_…` の ID で、**作った Google のプロジェクトの鍵でしか使えない**（公式に共有の仕組みがない）。あなたの鍵で動かすと、サーバーが「見つからない」を受けて**既製の声 `Leda` に自動で切り替え**、以後はその声で読む（起動ログに 1 行出る）。同梱の一言・冒頭・結末（29 本）は作者の声のまま鳴る。
 - 自分の声を作るなら `node design_voice.mjs --preset` で候補を作って試聴し、気に入った `voice_…` を `.env` の `TTS_VOICE` に。既製の名前（`Leda`・`Kore` など）も指定できる。切り替え先は `TTS_FALLBACK_VOICE`。
-- **声の中継**: 手元で動かす人が Gemini の鍵なしで彼女の声のまま読みたいときは、`.env` に `VOICE_RELAY_URL=https://jev-kano-64632361989.asia-northeast1.run.app` を書く（あなたの鍵は Jev と Claude だけ。公開版と同じ回数上限を分け合う）。
+- **声の中継**: 手元で動かす人が Gemini の鍵なしで彼女の声のまま読みたいときは、`.env` に `VOICE_RELAY_URL=https://jev-kano-64632361989.asia-northeast1.run.app` を書く（あなたの鍵は Jev と Claude だけ。声の回数上限は公開版と分け合う）。
 
 ### URL を開けば遊べる形で置く（Render・無料枠）
 
@@ -81,7 +81,9 @@
 2. 聞かれる 3 つの鍵（`TYPESAFE_API_KEY`・`ANTHROPIC_API_KEY`・`GEMINI_API_KEY`）を入れる。`TTS_VOICE` は自分の声か既製の名前に（作者の声 ID は作者の鍵でしか鳴らない）
 3. Deploy → `https://jev-kano-xxxx.onrender.com` が遊べる URL
 
-守り: `PUBLIC=1` で 1 人（IP）10 分 30 手・全体 1 日 400 手（≒ 40 ゲーム。数えるのは言葉の生成だけで、先読みの反射と声は数えない）。数字は Dashboard の環境変数で変えられる。費用は置いた人の 3 つの鍵の分（Claude が本体。Opus で 1 ゲーム 30〜60 円、`LLM_MODEL=claude-sonnet-5` なら半分以下）。無料枠は 15 分無操作で眠り、次の最初の 1 回だけ 30〜60 秒待つ。
+守り: `PUBLIC=1` で 1 人（IP）10 分 30 手・全体 1 日 400 手（≒ 40 ゲーム。手＝言葉の生成）。声は別に数える（1 人 10 分 `VOICE_PER_IP_10MIN` 既定 40 回・全体 1 日 `VOICE_DAILY_CAP` 既定 800 回。声の口は任意の文を読めるので、数えないと鍵を使い放題にされる）。計測（`_out/turns.jsonl`）は公開サーバーでは残さない。数字は Dashboard の環境変数で変えられる。
+
+相手の IP は `X-Forwarded-For` の後ろから数える（先頭は相手が自由に書けるので信じない）。手前の中継の数は置き場で違う: 起動ログの「X-Forwarded-For は n 段」を見て、ふつうの相手で 1 より多ければ `TRUST_PROXY_HOPS` をその数に（合っていないと全員が同じ相手に数えられ、上限に早く当たる）。費用は置いた人の 3 つの鍵の分（Claude が本体。Opus で 1 ゲーム 30〜60 円、`LLM_MODEL=claude-sonnet-5` なら半分以下）。無料枠は 15 分無操作で眠り、次の最初の 1 回だけ 30〜60 秒待つ。
 
 ### 中継サーバーを自分で立てる（作者向け・同じことをしたい人向け）
 
@@ -101,7 +103,7 @@ gcloud run deploy jev-kano-voice --source . --region asia-northeast1 --allow-una
   --set-env-vars VOICE_RELAY=1,GEMINI_API_KEY=（鍵）,TTS_VOICE=voice_...,RELAY_DAILY_CAP=3000
 ```
 
-出てきた URL を配る。守り: 1 人（IP）10 分 `RELAY_PER_IP_10MIN`（既定 40）・全体 1 日 `RELAY_DAILY_CAP`（既定 3,000）・文は 200 字まで・`RELAY_TOKEN` を両側に書けば合言葉つき。費用は Gemini TTS の分だけ（Tier 2 なら 1 日 100 回の壁は無い）。
+出てきた URL を配る。守り: 1 人（IP）10 分 `RELAY_PER_IP_10MIN`（既定 40）・全体 1 日 `RELAY_DAILY_CAP`（既定 3,000）・文は 200 字まで・`RELAY_TOKEN` を両側に書けば合言葉つき。相手の IP の数え方は上の `TRUST_PROXY_HOPS` と同じ。費用は Gemini TTS の分だけ（Tier 2 なら 1 日 100 回の壁は無い）。
 
 ### つまずいたら
 
@@ -139,7 +141,7 @@ node bench.mjs --model claude-opus-5 --runs 3
 ```
 
 台詞 30 本を同じ基準で Jev と LLM に独立に判定させ、応答時間・揺れ・一致率・費用を出す。
-各ターンの計測は `_out/turns.jsonl`（入力した台詞も残る。自分で遊ぶ前提）。
+各ターンの計測は `_out/turns.jsonl`（入力した台詞も残る。自分で遊ぶ前提。公開サーバー `PUBLIC=1` では残さない）。
 
 ## 制作記録
 
@@ -149,5 +151,5 @@ node bench.mjs --model claude-opus-5 --runs 3
 
 - 台詞は判定のため TypeSafe AI と Anthropic に、声を出すときは Google に送られる（打っている途中の先読みは既定でオフ。`?peek=1` のときだけ書きかけの文も Jev に送られる）。
   TypeSafe AI の入力データの保持・学習利用の方針は 2026-09 時点で公式ドキュメントに記載が見当たらない。
-- ローカルの `_out/` 以外にはこのプログラムは何も残さない。見たはじまりや設定はブラウザに残る。
+- ローカルの `_out/` 以外にはこのプログラムは何も残さない。公開版（`PUBLIC=1`）はそれも書かない（台詞も計測もサーバーに残さない）。見たはじまりや設定はブラウザに残る。
 - 人物も場面もすべて架空。
