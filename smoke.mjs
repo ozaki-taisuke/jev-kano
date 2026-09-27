@@ -45,6 +45,13 @@ try {
   if (r1.status !== 503) fail('鍵なしの /api/reflex が 503 でない: ' + r1.status);
   const r2 = await fetch(local + '/api/fixed?text=' + encodeURIComponent('任意の文') + '&mood=shy');
   if (r2.status !== 404) fail('決まった台詞以外の /api/fixed が 404 でない: ' + r2.status);
+  // はじまりごとに差し替えた結末（ステージ袖）も「決まった台詞」として受ける（404 でなく、鍵も同梱も無ければ 503、同梱済みなら 200）
+  const wings = cfg.scenario.episodes.find((e) => e.id === 'wings');
+  if (!wings || !wings.endings || !wings.endings.good || !wings.goal || !wings.playerRole) fail('ステージ袖に当日用の目標・立場・結末が無い');
+  for (const e of Object.values(wings.endings)) if (/明日|片付け/.test(e.text)) fail('ステージ袖（当日）の結末に前夜の言葉がある: ' + e.text);
+  if (/明日|片付けを手伝っている/.test(wings.playerRole + wings.goal)) fail('ステージ袖（当日）の目標・立場に前夜の言葉がある');
+  const r4 = await fetch(local + '/api/fixed?text=' + encodeURIComponent(wings.endings.good.text) + '&mood=joy');
+  if (r4.status === 404) fail('ステージ袖の結末が決まった台詞として受け付けられない');
   const r3 = await post(local, '/api/voice', { text: '任意の文' });
   if (r3.status !== 404) fail('消した口 /api/voice が 404 でない: ' + r3.status);
   console.log('OK: 鍵なしで起動・画面・設定・拒否が期待どおり');
