@@ -12,6 +12,11 @@
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="https://ozaki-taisuke.github.io/jev-kano/">
+<script>
+  // 描画する前に移動する（チラつかせない）。?stay=1 のときだけ案内を見せる
+  if (new URLSearchParams(location.search).get('stay') !== '1') location.replace('https://jev-kano-64632361989.asia-northeast1.run.app/');
+</script>
+<noscript><meta http-equiv="refresh" content="0;url=https://jev-kano-64632361989.asia-northeast1.run.app/"></noscript>
 <style>
   body { margin:0; min-height:100vh; display:grid; place-items:center; background:#3a2a2a url(og.jpg) center/cover no-repeat; font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP","Yu Gothic UI",system-ui,sans-serif; color:#2a2d3f; }
   .box { background:rgba(255,251,244,.92); border:1px solid rgba(255,255,255,.8); border-radius:18px; padding:26px 28px; max-width:520px; margin:16px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.4); }
@@ -28,11 +33,7 @@
   <p>顔が0.2秒で動いて、言葉はあとから来る。<br>判断特化AI Jev × Claude × Gemini の恋愛ADV。</p>
   <p>鍵なしで遊べます。眠っていると最初の1回だけ数秒待ちます。</p>
   <a class="go" id="go" href="https://jev-kano-64632361989.asia-northeast1.run.app/">遊ぶ</a>
-  <p class="sub">自動で移動します。<a href="https://github.com/ozaki-taisuke/jev-kano">ソースと制作記録（GitHub）</a> ／ <a href="https://qiita.com/taisuke_ozaki/items/92b374c9808eb7fb4aa2">記事（Qiita）</a></p>
+  <p class="sub"><a href="https://github.com/ozaki-taisuke/jev-kano">ソースと制作記録（GitHub）</a> ／ <a href="https://qiita.com/taisuke_ozaki/items/92b374c9808eb7fb4aa2">記事（Qiita）</a></p>
 </div>
-<script>
-  // ?stay=1 なら移動しない（この案内を見せたいとき）
-  if (new URLSearchParams(location.search).get('stay') !== '1') setTimeout(() => location.replace(document.getElementById('go').href), 900);
-</script>
 </body>
 </html>
