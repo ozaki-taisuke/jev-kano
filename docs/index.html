@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>#Jevカノ</title>
+<meta name="description" content="判断特化AI Jev が本音を0.2秒で決め、顔と一言が先に出る恋愛ADV。言葉は Claude、声は Gemini。鍵なしで遊べます。">
+<meta property="og:title" content="#Jevカノ">
+<meta property="og:description" content="顔が0.2秒で動いて、言葉はあとから来る。Jev × Claude × Gemini の恋愛ADV。鍵なしで遊べます。">
+<meta property="og:image" content="https://ozaki-taisuke.github.io/jev-kano/og.jpg">
+<meta property="og:url" content="https://ozaki-taisuke.github.io/jev-kano/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://ozaki-taisuke.github.io/jev-kano/">
+<style>
+  body { margin:0; min-height:100vh; display:grid; place-items:center; background:#3a2a2a url(og.jpg) center/cover no-repeat; font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP","Yu Gothic UI",system-ui,sans-serif; color:#2a2d3f; }
+  .box { background:rgba(255,251,244,.92); border:1px solid rgba(255,255,255,.8); border-radius:18px; padding:26px 28px; max-width:520px; margin:16px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.4); }
+  h1 { margin:0 0 6px; font-size:26px; letter-spacing:.06em; }
+  p { line-height:1.8; margin:8px 0; font-size:15px; }
+  a.go { display:inline-block; margin-top:12px; background:linear-gradient(180deg,#f0a35a,#e8834a); color:#fff; text-decoration:none; border-radius:12px; padding:13px 28px; font-weight:700; font-size:17px; letter-spacing:.1em; box-shadow:0 6px 18px rgba(232,131,74,.45); }
+  .sub { color:#6b6f85; font-size:12px; margin-top:14px; }
+  .sub a { color:#3b82c6; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>#Jevカノ</h1>
+  <p>顔が0.2秒で動いて、言葉はあとから来る。<br>判断特化AI Jev × Claude × Gemini の恋愛ADV。</p>
+  <p>鍵なしで遊べます。眠っていると最初の1回だけ数秒待ちます。</p>
+  <a class="go" id="go" href="https://jev-kano-64632361989.asia-northeast1.run.app/">遊ぶ</a>
+  <p class="sub">自動で移動します。<a href="https://github.com/ozaki-taisuke/jev-kano">ソースと制作記録（GitHub）</a> ／ <a href="https://qiita.com/taisuke_ozaki/items/92b374c9808eb7fb4aa2">記事（Qiita）</a></p>
+</div>
+<script>
+  // ?stay=1 なら移動しない（この案内を見せたいとき）
+  if (new URLSearchParams(location.search).get('stay') !== '1') setTimeout(() => location.replace(document.getElementById('go').href), 900);
+</script>
+</body>
+</html>
