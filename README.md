@@ -106,15 +106,16 @@ gcloud run deploy jev-kano-voice --source . --region asia-northeast1 --allow-una
 ### 実験を本番と分けて置く（stg）
 
 - 本体を変えない実験は、別の頁として同じサーバーに置く。いまあるのは `/rig`（簡易リグ: 「表情の状態 → 描画」の層を挟み、反射の顔を一瞬出してから取り繕う・息づかい・赤面の残り。本番の差し替えと左右に並べて同じ入力で比較する）。手元なら http://127.0.0.1:8792/rig 。
-- 外から比較したいときは、Cloud Run に**別のサービス名**で置く（本番と同じ鍵・上限は小さく）。鍵の置き場は `.env` の 1 か所だけ。deploy のときだけ `.env` から YAML を作って gcloud に渡し、終わったら消す（`deploy.mjs`）。リポジトリの root で:
+- 外から比較したいときは、Cloud Run に**別のサービス名**で置く（本番と同じ鍵・上限は小さく）。鍵の置き場は `.env` の 1 か所だけ。deploy のときだけ `.env` から YAML を作って gcloud に渡し、終わったら消す（`deploy.mjs`）。
+- **ブランチと置き場の対応は固定**: `stg` ブランチ → `jev-kano-stg`、`main` → 本番 `jev-kano`。stg に載せたいものは、作業ブランチを `stg` に merge して push する（`stg` は「いま stg に載っているもの」で、日付は要らない。置いた版は `/api/config` の `app.rev` に出る）。リポジトリの root で:
 
   ```bash
-  npm run deploy:stg                # jev-kano-stg（1 人 10 分 30 手・1 日 100 手）
+  npm run stg                       # stg ブランチに切り替えて最新を取り、jev-kano-stg に置く（1 人 10 分 30 手・1 日 100 手）
   node deploy.mjs --dry-run         # 渡す変数の名前と gcloud の行を見るだけ
-  node deploy.mjs --service jev-kano --cap 400   # 本番を置き直す
+  node deploy.mjs --service jev-kano --cap 400   # 本番を置き直す（main で）
   ```
 
-  本番（名前が `-stg` で終わらないサービス）は **main で、未コミットの変更が無いときだけ**置ける（`--force` で外せる）。置いた版は `/api/config` の `app.env`（stg／prod）と `app.rev`（コミット）で分かり、stg はタブの題に `[stg]` が付く。`.env` のうち手元専用（`PORT`・`HOST`・`REFLEX_GALGE_OUT`）は渡さない（Cloud Run は `PORT` を自分で決めるので、渡すと落ちる）。`--model claude-sonnet-5` で実験だけ安いモデルに。本番（`jev-kano`）は触らない。眠っている間の費用はどちらもほぼ 0。実験をやめたら `gcloud run services delete jev-kano-stg --region asia-northeast1`。
+  `deploy.mjs` は、stg なら `stg` ブランチ、本番なら `main` で未コミットの変更が無いときだけ置く（`--force` で外せる）。置いた版は `/api/config` の `app.env`（stg／prod）と `app.rev`（コミット）で分かり、stg はタブの題に `[stg]` が付く。`.env` のうち手元専用（`PORT`・`HOST`・`REFLEX_GALGE_OUT`）は渡さない（Cloud Run は `PORT` を自分で決めるので、渡すと落ちる）。`--model claude-sonnet-5` で実験だけ安いモデルに。本番（`jev-kano`）は触らない。眠っている間の費用はどちらもほぼ 0。実験をやめたら `gcloud run services delete jev-kano-stg --region asia-northeast1`。
 
 ### つまずいたら
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Cloud Run に置く。鍵の置き場は .env の 1 か所だけ（YAML は手で持たない）。
- *   npm run deploy:stg                         # jev-kano-stg（上限小さめ）
+ *   npm run stg                                # stg ブランチに切り替えて最新を取り、jev-kano-stg に置く（上限小さめ）
+ *   npm run deploy:stg                         # 今の checkout（stg ブランチであること）を jev-kano-stg に置く
  *   node deploy.mjs --service jev-kano --cap 400 --per-ip 30   # 本番（main で・未コミットなしのときだけ。--force で外せる）
  *   node deploy.mjs --dry-run                  # 何を渡すか（鍵の名前だけ）と gcloud の行を見るだけ
  *
@@ -25,13 +26,14 @@ const MODEL = opt('model', '');
 const DRY = args.includes('--dry-run');
 const LOCAL_ONLY = new Set(['PORT', 'HOST', 'REFLEX_GALGE_OUT', 'PREWARM_SFX', 'PREWARM_INTERVAL_MS']);
 
-// 出荷の守り: 名前が -stg で終わらないサービス（本番）は、main で・未コミットの変更が無いときだけ置ける。--force で外せる
+// 置く元のブランチを決めておく: stg（名前が -stg で終わるサービス）は stg ブランチから、本番は main から。本番は未コミットの変更が無いときだけ。--force で外せる
 const git = (a) => { const r = spawnSync('git', a, { cwd: here, encoding: 'utf8' }); return r.status === 0 ? r.stdout.trim() : ''; };
 const BRANCH = git(['branch', '--show-current']), DIRTY = git(['status', '--porcelain']) !== '', REV = git(['rev-parse', '--short', 'HEAD']);
 const IS_STG = /-stg$/.test(SERVICE);
-if (!IS_STG && !args.includes('--force')) {
-  const why = BRANCH !== 'main' ? 'ブランチが main でない（' + (BRANCH || '不明') + '）' : DIRTY ? '未コミットの変更がある' : '';
-  if (why) { console.error('本番（' + SERVICE + '）には置かない: ' + why + '。実験なら --service jev-kano-stg、それでも置くなら --force'); process.exit(1); }
+if (!args.includes('--force')) {
+  const want = IS_STG ? 'stg' : 'main';
+  const why = BRANCH !== want ? 'ブランチが ' + want + ' でない（今は ' + (BRANCH || '不明') + '）' : (!IS_STG && DIRTY) ? '未コミットの変更がある' : '';
+  if (why) { console.error((IS_STG ? 'stg' : '本番') + '（' + SERVICE + '）には置かない: ' + why + '。\n  ' + (IS_STG ? 'stg に載せたいものを stg ブランチにしてから: git checkout stg && git merge <ブランチ> && git push origin stg' : 'main に merge してから') + '。それでも置くなら --force'); process.exit(1); }
 }
 
 const envFile = path.join(here, '.env');

@@ -9,7 +9,8 @@
     "bench": "node bench.mjs",
     "sfx:bundle": "node bundle_sfx.mjs",
     "test": "node smoke.mjs",
-    "deploy:stg": "node deploy.mjs"
+    "deploy:stg": "node deploy.mjs",
+    "stg": "git checkout stg && git pull --ff-only origin stg && node deploy.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0"
