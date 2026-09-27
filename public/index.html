@@ -440,10 +440,11 @@ function tick() {
 }
 function clockMark(k, ms) { clock.marks[k] = ms == null ? -1 : ms; $('c' + k).classList.remove('run'); if (ms == null) { $('c' + k).textContent = '—'; $('t' + k).style.width = '0%'; } else { $('c' + k).textContent = sec(ms); $('t' + k).style.width = Math.min(100, ms / CLOCK_MAX * 100) + '%'; } }
 
-// ---- 打っている途中: Jev が書きかけを読み、顔だけ黙って動く（数字は出さない・好感度は動かさない） ----
+// ---- 打っている途中の先読み（既定はオフ。相手が打っている途中で顔が変わるのは会話として不自然、が本人の判断。?peek=1 で動く） ----
+const PEEK = new URLSearchParams(location.search).get('peek') === '1';
 let peekTimer = 0, peekSeq = 0, peekLast = '';
 function schedulePeek() {
-  if (mode() !== 'reflex' || !cfg.has.jev || S.busy) return;
+  if (!PEEK || mode() !== 'reflex' || !cfg.has.jev || S.busy) return;
   clearTimeout(peekTimer);
   peekTimer = setTimeout(async () => {
     const text = $('input').value.trim();
@@ -783,7 +784,7 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
   $('models').textContent = '反射 ' + (c.has.jev ? 'jev-latest' : 'なし') + ' ／ 言葉 ' + (c.has.llm ? c.llmModel : 'なし') + ' ／ 声 ' + voiceLabel;
   if (!c.has.tts && !c.sfxReady && !('speechSynthesis' in window)) { $('voice').checked = false; $('voice').disabled = true; }
   if (!c.has.jev) { document.querySelector('input[value=llm]').checked = true; document.querySelector('input[value=reflex]').disabled = true; }
-  $('foot').innerHTML = '台詞は判定のため TypeSafe AI（Jev）と Anthropic（Claude）へ、声を Gemini で出すときは Google へ送られます。打っている途中の文も Jev に送られます。各ターンの計測は <code>_out/turns.jsonl</code> に残ります。';
+  $('foot').innerHTML = '台詞は判定のため TypeSafe AI（Jev）と Anthropic（Claude）へ、声を Gemini で出すときは Google へ送られます。' + (PEEK ? '打っている途中の文も Jev に送られます。' : '') + '各ターンの計測は <code>_out/turns.jsonl</code> に残ります。';
   if ('speechSynthesis' in window) speechSynthesis.getVoices();
   setBackground(null);
   prepareCutouts();

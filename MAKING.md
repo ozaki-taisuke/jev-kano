@@ -261,3 +261,5 @@
 - gcloud が古いプロジェクト（課金なし）を向いていた／PowerShell に bash の改行を貼っていた／ビルド係のサービスアカウントに権限が無かった（`roles/cloudbuild.builds.builder` を付与）、の 3 つを越えて、声 D のあるプロジェクト Kawaii-TTS-for-Jev に `gcloud run deploy --source .` で置いた。鍵はリポジトリ外の環境変数ファイルで渡し、`.gcloudignore` で `.env`・`_out`・`making` を除外。
 - 公開 URL: https://jev-kano-64632361989.asia-northeast1.run.app/ 。外から確認: 画面 200・同梱の一言 200・Jev 反射 301 ms・声 D 172 KB。守りは `PUBLIC=1`（1 人 10 分 40 回・全体 1 日 1,200 回 ≒ 40 ゲーム）。
 - Render の設計図（`render.yaml`）と Tailscale Funnel も用意したが、Funnel は本人が却下（責任の持てる置き場に）。
+
+- 本人「先読みいらなくね？ 会話なんだから。念じゃないんだから」→ 打っている途中の先読み（0.35 秒ごとに書きかけを Jev に読ませて顔だけ動かす）を既定でオフに。`?peek=1` のときだけ動く（記事で仕組みとして触れたので残す）。公開版では反射の回数も減る。
