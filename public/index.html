@@ -724,7 +724,8 @@ async function turn(line, action) {
   fetch('/api/log', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rec) }).catch(() => {});
 
   turnsLeft();
-  if (endKind) ending(endKind === 'auto' ? undefined : endKind);
+  // 結末は、最後の返事の声が鳴り終わってから（文字と声がずれないように）
+  if (endKind) { const waitMs = rec.tts && rec.tts.kind !== 'none' ? Math.max(300, (playing.size ? (nextAt - ctx().currentTime) * 1000 : 0) + 400) : 600; setTimeout(() => ending(endKind === 'auto' ? undefined : endKind), waitMs); }
 }
 
 async function heroineInitiative(prevRec) {
