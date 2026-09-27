@@ -30,6 +30,14 @@ fs.mkdirSync(OUT, { recursive: true });
 const scenario = JSON.parse(fs.readFileSync(path.join(here, 'scenario.json'), 'utf8'));
 const INDEX = path.join(here, 'public', 'index.html');
 
+// 声の 1 日の上限に当たったら、戻る時刻まで Gemini を呼びに行かない（無駄撃ちと待ち時間を避ける）。画面は字幕モードへ
+let ttsLimitUntil = 0;
+function noteTtsError(e) {
+  const m = String(e && e.message || '').match(/per day.*?retry in (?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
+  if (m) ttsLimitUntil = Date.now() + (Number(m[1] || 0) * 3600 + Number(m[2] || 0) * 60 + Number(m[3] || 0)) * 1000;
+}
+const ttsDown = () => Date.now() < ttsLimitUntil;
+const ttsRetryIn = () => { const s = Math.max(0, Math.round((ttsLimitUntil - Date.now()) / 1000)); return s >= 3600 ? Math.round(s / 3600) + 'h' : Math.ceil(s / 60) + 'm'; };
 const has = { jev: !!process.env.TYPESAFE_API_KEY, llm: !!process.env.ANTHROPIC_API_KEY, tts: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) };
 
 // 顔の画像（任意）: public/faces/{joy,shy,puzzled,upset,calm}.(png|webp|jpg) があれば SVG の代わりに使う
@@ -63,6 +71,7 @@ const sfxFile = (kind, mood, tier, voice) => path.join(SFX_DIR, sfxName(kind, mo
 const sfxExisting = (kind, mood, tier, voice) => [path.join(SFX_BUNDLED, sfxName(kind, mood, tier, voice)), sfxFile(kind, mood, tier, voice)].find((f) => fs.existsSync(f));
 async function sfxPcm(kind, mood, tier, voice = DEFAULT_VOICE) {
   if (!forSpeech(sfxText(kind, mood, tier))) return { buf: Buffer.alloc(0), rate: 24000, silent: true }; // 「……」だけの一言は無音
+  if (ttsDown() && !sfxExisting(kind, mood, tier, voice)) throw new Error('声は今日の上限に達しています（あと ' + ttsRetryIn() + '）');
   const key = kind + '_' + mood + '_' + tier + '_' + voice;
   const file = sfxFile(kind, mood, tier, voice);
   const have = sfxExisting(kind, mood, tier, voice);
@@ -74,7 +83,7 @@ async function sfxPcm(kind, mood, tier, voice = DEFAULT_VOICE) {
       const buf = Buffer.concat(chunks);
       fs.mkdirSync(SFX_DIR, { recursive: true }); fs.writeFileSync(file, buf);
       return { buf, rate };
-    })().finally(() => { delete sfxPending[key]; });
+    })().catch((e) => { noteTtsError(e); throw e; }).finally(() => { delete sfxPending[key]; });
   }
   return sfxPending[key];
 }
@@ -135,7 +144,7 @@ const server = http.createServer(async (req, res) => {
       return res.end(fs.readFileSync(INDEX));
     }
     if (req.method === 'GET' && url.pathname === '/api/config') {
-      return send(res, 200, { has, llmModel: DEFAULT_MODEL, ttsModel: DEFAULT_TTS_MODEL, ttsVoice: DEFAULT_VOICE, scenario, faces: faceImages(), backgrounds: bgImages(), interjections: INTERJECTIONS, tiers: [0.6, 0.85], sfxReady: sfxStatus().ready.length, fallbackLines: FALLBACK_LINES, voices: scenario.voices || {} });
+      return send(res, 200, { has, ttsDown: ttsDown(), ttsRetryIn: ttsDown() ? ttsRetryIn() : null, llmModel: DEFAULT_MODEL, ttsModel: DEFAULT_TTS_MODEL, ttsVoice: DEFAULT_VOICE, scenario, faces: faceImages(), backgrounds: bgImages(), interjections: INTERJECTIONS, tiers: [0.6, 0.85], sfxReady: sfxStatus().ready.length, fallbackLines: FALLBACK_LINES, voices: scenario.voices || {} });
     }
     if (req.method === 'GET' && url.pathname.startsWith('/faces/')) {
       const name = path.basename(url.pathname); const ext = path.extname(name).toLowerCase(); const sub = url.pathname.startsWith('/faces/green/') ? 'green' : '';
@@ -201,6 +210,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/voice/stream') {
       if (!has.tts) return send(res, 503, { error: 'GEMINI_API_KEY がありません' });
+      if (ttsDown()) return send(res, 429, { error: '声は今日の上限に達しています（あと ' + ttsRetryIn() + '）', down: true });
       const text = clean(b.text, 200);
       if (!text) return send(res, 400, { error: '読む台詞が空です' });
       // 生の PCM（16bit・モノラル）を届いた順に流す。ヘッダにサンプリング周波数。最初の断片の前に失敗したら JSON で返す
@@ -214,8 +224,9 @@ const server = http.createServer(async (req, res) => {
         console.log('voice stream: first ' + info.msFirst + 'ms, done ' + info.ms + 'ms, ' + info.bytes + ' bytes');
         return res.end();
       } catch (e) {
+        noteTtsError(e);
         if (started) { console.error('voice stream 中断:', e.message); return res.end(); }
-        return send(res, 502, { error: e.message });
+        return send(res, ttsDown() ? 429 : 502, { error: e.message, down: ttsDown() });
       }
     }
     if (url.pathname === '/api/voice') {
@@ -245,6 +256,7 @@ async function prewarmSfx() {
   for (const text of fixedTexts()) { const mood = fixedMood(text); if (!fs.existsSync(path.join(SFX_BUNDLED, fixedName(text, mood, DEFAULT_VOICE))) && !fs.existsSync(path.join(SFX_DIR, fixedName(text, mood, DEFAULT_VOICE)))) missing.push(['fixed', text, mood]); }
   if (missing.length) console.log('  一言の音声を ' + missing.length + ' 個作ります（' + gap / 1000 + ' 秒おき。PREWARM_SFX=0 で止められる・PREWARM_INTERVAL_MS で間隔）');
   for (let i = 0; i < missing.length; i++) {
+    if (ttsDown()) { console.log('  声は今日の上限に達しているので、残り ' + (missing.length - i) + ' 本は次回（あと ' + ttsRetryIn() + '）'); break; }
     if (i > 0) await new Promise((r) => setTimeout(r, gap));
     const [kind, mood, tier] = missing[i];
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -268,13 +280,14 @@ async function fixedPcm(text, mood, voice) {
   const name = fixedName(text, mood, voice);
   const have = [path.join(SFX_BUNDLED, name), path.join(SFX_DIR, name)].find((f) => fs.existsSync(f));
   if (have) return { buf: fs.readFileSync(have), rate: 24000 };
+  if (ttsDown()) throw new Error('声は今日の上限に達しています（あと ' + ttsRetryIn() + '）');
   if (!fixedPending[name]) {
     fixedPending[name] = (async () => {
       const chunks = []; let rate = 24000;
       await voiceStream({ text, mood, kind: 'line', intensity: 0.7, voiceName: voice, onChunk: (c, m) => { chunks.push(c); rate = m.sampleRate; } });
       const buf = Buffer.concat(chunks); fs.mkdirSync(SFX_DIR, { recursive: true }); fs.writeFileSync(path.join(SFX_DIR, name), buf);
       return { buf, rate };
-    })().finally(() => { delete fixedPending[name]; });
+    })().catch((e) => { noteTtsError(e); throw e; }).finally(() => { delete fixedPending[name]; });
   }
   return fixedPending[name];
 }

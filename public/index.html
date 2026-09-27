@@ -65,7 +65,7 @@
   .msgwin .plate.me { background:linear-gradient(90deg, #5aa0e0, var(--jev)); box-shadow:0 2px 6px rgba(59,130,198,.35); }
   .msgwin .plate:empty { display:none; }
   .msgwin .text { font-size:17px; line-height:1.75; min-height:3.2em; max-height:26vh; overflow:auto; white-space:pre-wrap; position:relative; }
-  .msgwin .text.narr { color:var(--sub); font-size:15px; }
+  .msgwin .text.narr { color:#4a4658; font-size:15px; font-style:italic; }
   .msgwin .text .say { color:var(--jev); display:block; }
   .msgwin .text .line { display:block; margin-top:.5em; animation:fadeIn .35s ease-out; }
   .msgwin .text.pending { color:var(--sub); }
@@ -140,7 +140,8 @@
   .title .box { max-width:600px; width:100%; background:var(--panel); border:1px solid rgba(255,255,255,.8); border-radius:18px; padding:20px 24px; backdrop-filter:blur(10px); box-shadow:0 20px 60px rgba(0,0,0,.4); }
   .title h2 { position:absolute; left:-9999px; }
   .title p.intro { line-height:1.8; font-size:14px; color:var(--ink); background:rgba(255,255,255,.6); border:1px dashed var(--line); border-radius:12px; padding:12px 14px; margin:0 0 6px; }
-  .title p.goal { line-height:1.7; font-size:13px; color:#b3541e; margin:0; padding:8px 14px; border-left:3px solid var(--accent2); }
+  .title p.goal { line-height:1.7; font-size:13px; color:#b3541e; margin:14px 0 0; padding:8px 14px; border-left:3px solid var(--accent2); }
+  .title input:disabled { color:var(--sub); background:rgba(230,224,214,.7); cursor:not-allowed; }
   .title .cols { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
   @media (max-width:560px) { .title .cols { grid-template-columns:1fr; } }
   .title label.f { display:block; margin:12px 0 4px; color:var(--sub); font-size:12px; letter-spacing:.06em; }
@@ -165,7 +166,7 @@
   <span class="stat">片付け<b id="turnsLeft">—</b></span>
   <span class="stat" id="topicsStat" style="display:none">話題<b id="topics"></b></span>
   <button type="button" id="logBtn" title="これまでの会話">ログ</button>
-  <label><input type="checkbox" id="voice" checked> 声</label>
+  <label id="voiceLabel"><input type="checkbox" id="voice" checked> <span id="voiceText">声</span></label>
   <button type="button" id="helpBtn" title="遊び方">？</button>
   <label class="dbg"><input type="checkbox" id="debugToggle" checked> デバッグ</label>
   <span id="sfxState" style="font-size:11px;color:#ffd27a"></span>
@@ -254,8 +255,8 @@
   <form id="form" class="dock">
     <div class="chips" id="chips"></div>
     <div class="row2">
-      <textarea id="input" placeholder="台詞を入力（Enter で送る・Shift+Enter で改行）。絵に触れることもできる"></textarea>
-      <button class="send" id="send" type="submit">言う</button>
+      <textarea id="input" placeholder="もしくは声をかける（Enter で送る・Shift+Enter で改行）"></textarea>
+      <button class="send" id="send" type="submit">声をかける</button>
     </div>
   </form>
 </div>
@@ -293,16 +294,14 @@
     <use href="#logoText"/>
   </svg>
   <h2 id="titleName">#Jevカノ</h2>
-  <div class="sub" id="titleSub">顔が先に動いて、言葉はあとから来る</div>
   <div class="box">
-    <p class="intro" id="titleIntro"></p>
-    <p class="goal" id="titleGoal"></p>
     <div class="cols">
       <div><label class="f" for="playerName">あなたの名前</label><input id="playerName" maxlength="20" placeholder="例: 拓海" autocomplete="off"></div>
-      <div><label class="f" for="heroineName">彼女の名前</label><select id="heroineName"></select></div>
+      <div><label class="f" for="heroineName">彼女の名前</label><select id="heroineName"></select><input id="heroineFixed" disabled style="display:none"></div>
     </div>
     <label class="f" for="episode">はじまり</label>
     <select id="episode"></select>
+    <p class="goal" id="titleGoal"></p>
     <button class="start" id="startBtn">はじめる</button>
     <div class="note">人物も場面も架空です。台詞は判定のため TypeSafe AI（Jev）と Anthropic（Claude）へ、声を出すときは Google（Gemini TTS）へ送られます。</div>
   </div>
@@ -388,7 +387,7 @@ function renderWin() {
   const txt = $('winText'), plate = $('winName'), prev = $('winPrev');
   txt.classList.toggle('pending', last.classList.contains('pending'));
   txt.classList.toggle('narr', last.classList.contains('intro'));
-  if (last.classList.contains('intro')) { plate.textContent = ''; plate.className = 'plate'; prev.textContent = ''; txt.innerHTML = esc(last.textContent) + (S && S.waitOpen ? '<span class="next">▼ クリックで続ける</span>' : ''); return; }
+  if (last.classList.contains('intro')) { plate.textContent = last.classList.contains('mono') && S ? S.playerName : ''; plate.className = 'plate me'; prev.textContent = ''; txt.innerHTML = esc(last.textContent) + (S && S.waitOpen ? '<span class="next">▼ クリックで続ける</span>' : ''); return; }
   if (last.classList.contains('user')) { plate.textContent = S ? S.playerName : ''; plate.className = 'plate me'; prev.textContent = ''; txt.textContent = last.textContent; return; }
   plate.textContent = S ? S.heroineName : ''; plate.className = 'plate';
   const before = items[items.length - 2];
@@ -472,6 +471,13 @@ async function playPcm(r, onFirst) {
   return { msFirst: first, ms: Math.round(performance.now() - t0), bytes: total, seconds: +(total / 2 / rate).toFixed(2) };
 }
 function pickJaVoice() { const vs = speechSynthesis.getVoices(); return vs.find((v) => /ja/i.test(v.lang) && /Nanami|Haruka|Ayumi|Kyoko|O-ren|Female|女/i.test(v.name)) || vs.find((v) => /ja/i.test(v.lang)) || null; }
+let subtitleMode = false; // 声が使えなくなったら字幕モード（以後は声を呼びに行かない。同梱の一言と冒頭・結末は鳴る）
+function enterSubtitleMode(why) {
+  if (subtitleMode) return; subtitleMode = true;
+  $('voiceText').textContent = '字幕モード'; $('voice').disabled = true; $('voiceLabel').title = why || '';
+  notice('声が使えないので字幕モードです' + (why ? '（' + why + '）' : '') + '。同梱の音声だけ鳴ります');
+  setTimeout(() => notice(''), 6000);
+}
 let useBrowserVoice = false; try { useBrowserVoice = localStorage.getItem('jevkano_browser_voice') === '1'; } catch {}
 const BROWSER_STYLE = { joy: [1.25, 1.1], shy: [1.2, 1.15], puzzled: [1.05, .9], upset: [.85, .95], calm: [1.05, 1] };
 function speakBrowser(text, mood) {
@@ -519,15 +525,16 @@ async function interject(kind, mood, tier, onFirst) {
 }
 /** 台詞の声（本音の色 × 場合 × 強さで読む） */
 async function speak(text, mood, onFirst, extra = {}) {
-  if (cfg.has.tts) {
+  if (subtitleMode && !useBrowserVoice) return { kind: 'none', subtitle: true };
+  if (cfg.has.tts && !subtitleMode) {
     try {
       const r = await fetch('/api/voice/stream', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, mood, heroineName: S.heroineName, ...extra }) });
       if (!r.ok) { let j = {}; try { j = await r.json(); } catch {} throw new Error(j.error || r.status); }
       notice('');
       return { kind: 'gemini-stream', model: r.headers.get('X-TTS-Model') || '', ...(await playPcm(r, onFirst)) };
     } catch (e) {
-      const m = e.message.match(/retry in ([^ )]+)/i);
-      if (!useBrowserVoice) { notice('声: ' + (/per day|per minute|429/.test(e.message) ? '今日の上限に達しました' + (m ? '（あと ' + m[1] + '）' : '') : '届きません') + '。字幕だけで続けます（「？」で代用の声を選べます）'); return { kind: 'none', error: e.message }; }
+      const m = e.message.match(/(?:retry in|あと) ([^ )）]+)/i);
+      if (!useBrowserVoice) { enterSubtitleMode(/per day|上限|429/.test(e.message) ? '今日の上限' + (m ? '・あと ' + m[1] : '') : '届かない'); return { kind: 'none', error: e.message }; }
       notice('声: ' + (/per day|per minute|429/.test(e.message) ? '今日の上限に達したので' : '届かないので') + 'ブラウザの声で代用中');
       const o = speakBrowser(plain(text), mood); onFirst && onFirst(0); return { ...o, kind: 'browser-fallback', error: e.message };
     }
@@ -567,14 +574,18 @@ function reset() {
   chips();
   for (const k of KEYS) { $('c' + k).textContent = '—'; $('c' + k).classList.remove('run'); $('t' + k).style.width = '0%'; }
   $('ending').style.display = 'none';
-  // ト書き（状況）を先に見せ、クリックで彼女の第一声へ
+  // 状況の説明: 彼女が見えた状態で、主人公のモノローグ（導入 → その日の場面）。クリックで彼女の第一声へ
+  const mono = (cfg.scenario.intro || '').replace(/\{name\}/g, S.heroineName);
   const narr = ep.narration || ep.scene || cfg.scenario.scene;
-  if (narr) { S.waitOpen = true; add('intro', narr); }
+  S.pages = [mono, narr].filter(Boolean);
+  if (S.pages.length) { S.waitOpen = true; add('intro mono', S.pages.shift()); }
   else openingLine();
   $('input').focus();
 }
 function openingLine() {
-  if (!S.waitOpen) return; S.waitOpen = false;
+  if (!S.waitOpen) return;
+  if (S.pages && S.pages.length) { add('intro mono', S.pages.shift()); return; } // 次のページ
+  S.waitOpen = false;
   const ep = S.episode || (cfg.scenario.episodes || [])[0] || { opening: cfg.scenario.opening };
   add('her', ep.opening);
   S.history.push({ role: 'assistant', text: ep.opening });
@@ -586,7 +597,7 @@ function turnsLeft() { const n = cfg.scenario.maxTurns - S.turn; $('turnsLeft').
 function chips() {
   const c = $('chips'); c.innerHTML = '';
   const sug = (S.episode && S.episode.suggestions) || cfg.scenario.suggestions; const list = sug[S.turn % sug.length] || [];
-  const l = document.createElement('span'); l.className = 'lbl'; l.textContent = '言う:'; c.appendChild(l);
+  const l = document.createElement('span'); l.className = 'lbl'; l.textContent = '選ぶ:'; c.appendChild(l);
   for (const t of list) { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.onclick = () => { $('input').value = t; $('input').focus(); schedulePeek(); }; c.appendChild(b); }
 }
 // 顔の部位 → 行為
@@ -598,7 +609,7 @@ for (const z of document.querySelectorAll('.zone, .pz')) {
 
 async function turn(line, action) {
   if ((!line.trim() && !action) || S.busy || S.over) return;
-  if (S.waitOpen) openingLine();
+  while (S.waitOpen) openingLine();
   S.busy = true; $('send').disabled = true; clearTimeout(peekTimer); peekSeq++;
   const m = mode();
   const shown = action ? '（' + action.label + '）' : line;
@@ -734,6 +745,7 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
   if ('speechSynthesis' in window) speechSynthesis.getVoices();
   setBackground(null);
   prepareCutouts();
+  if (c.ttsDown) enterSubtitleMode('今日の上限・あと ' + (c.ttsRetryIn || '?'));
   // デバッグ表示（?debug=1 か チェック）
   const dbg = new URLSearchParams(location.search).get('debug') === '1';
   const setDbg = (on) => { document.body.classList.toggle('debug', on); $('debugToggle').checked = on; $('debugToggle2').checked = on; };
@@ -750,8 +762,7 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
   $('helpClose').onclick = () => { $('help').style.display = 'none'; };
   // 開始画面
   if (c.scenario.title) { $('appTitle').textContent = c.scenario.title; $('titleName').textContent = c.scenario.title; document.title = c.scenario.title; }
-  if (c.scenario.subtitle) $('titleSub').textContent = c.scenario.subtitle;
-  const sel = $('heroineName'); if ((c.scenario.names || []).length <= 1) { sel.style.display = 'none'; document.querySelector('label[for=heroineName]').textContent = '彼女: ' + (c.scenario.names || [c.scenario.persona['名前']])[0]; }
+  const sel = $('heroineName'); if ((c.scenario.names || []).length <= 1) { sel.style.display = 'none'; $('heroineFixed').style.display = ''; $('heroineFixed').value = (c.scenario.names || [c.scenario.persona['名前']])[0]; $('heroineFixed').title = '当面はこの一人'; }
   for (const n of (c.scenario.names || [c.scenario.persona['名前']])) { const o = document.createElement('option'); o.value = n; const v = (c.voices || {})[n]; o.textContent = n + (v && v.note ? '（声: ' + v.note.replace(/^[A-Z]: /, '') + '）' : ''); sel.appendChild(o); }
   const epSel = $('episode');
   const renderEpisodes = () => {
@@ -761,8 +772,6 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
   };
   renderEpisodes(); window.__renderEpisodes = renderEpisodes;
   const pickEpisode = () => { const eps = (c.scenario.episodes || []); const mem = memGet(); if (epSel.value) return eps.find((e) => e.id === epSel.value); const open = eps.filter((e) => !e.locked || mem.perfect); return open.find((e) => !episodeDone(e.id)) || open[Math.floor(Math.random() * open.length)] || eps[0]; };
-  const renderIntro = () => { $('titleIntro').textContent = (c.scenario.intro || '').replace(/\{name\}/g, sel.value); };
-  sel.addEventListener('change', renderIntro); renderIntro();
   $('titleGoal').textContent = '目標: ' + (c.scenario.goal || '') + ' 失敗: 親しさが下がりきる、または彼女が帰ってしまう。';
   try { const saved = localStorage.getItem('reflex_galge_player'); if (saved) $('playerName').value = saved; } catch {}
   S = null;
