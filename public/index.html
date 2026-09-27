@@ -460,6 +460,8 @@ function schedulePeek() {
 
 // ---- 音 ----
 let actx = null, nextAt = 0; // nextAt: 次の音を鳴らしてよい時刻（一言と台詞が重ならないよう共有）
+const playing = new Set(); // 鳴っている断片。新しい手を送ったら止める（前の声の後ろに一言が並ぶと反射が遅れて聞こえる）
+function stopAudio() { for (const src of playing) { try { src.stop(); } catch {} } playing.clear(); nextAt = 0; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
 let outNode = null;
 function ctx() {
   actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume();
@@ -484,7 +486,7 @@ async function playPcm(r, onFirst) {
     const buf = ac.createBuffer(1, n, rate); const ch = buf.getChannelData(0);
     for (let i = 0; i < n; i++) ch[i] = view.getInt16(i * 2, true) / 32768;
     const f = Math.min(72, n >> 1); for (let i = 0; i < f; i++) { const g = i / f; ch[i] *= g; ch[n - 1 - i] *= g; } // つなぎ目のプチ音を消す（3ms のフェード）
-    const src = ac.createBufferSource(); src.buffer = buf; src.connect(outNode);
+    const src = ac.createBufferSource(); src.buffer = buf; src.connect(outNode); playing.add(src); src.onended = () => playing.delete(src);
     const at = Math.max(ac.currentTime + 0.02, nextAt); src.start(at); nextAt = at + buf.duration;
     if (first == null) { first = Math.round(performance.now() - t0); onFirst && onFirst(first); }
   };
@@ -537,7 +539,7 @@ async function prefetchSfx() {
 async function interject(kind, mood, tier, onFirst) {
   const key = kind + '/' + mood + '/' + tier;
   if (sfxBuf[key]) { // メモリから即
-    const ac = ctx(); const src = ac.createBufferSource(); src.buffer = sfxBuf[key]; src.connect(outNode);
+    const ac = ctx(); const src = ac.createBufferSource(); src.buffer = sfxBuf[key]; src.connect(outNode); playing.add(src); src.onended = () => playing.delete(src);
     const at = Math.max(ac.currentTime + 0.01, nextAt); src.start(at); nextAt = at + sfxBuf[key].duration; onFirst && onFirst(0);
     return { kind: 'gemini-sfx-memory', seconds: +sfxBuf[key].duration.toFixed(2) };
   }
@@ -638,6 +640,7 @@ async function turn(line, action) {
   if ((!line.trim() && !action) || S.busy || S.over) return;
   while (S.waitOpen) openingLine();
   S.busy = true; $('send').disabled = true; clearTimeout(peekTimer); peekSeq++;
+  stopAudio(); S.turnSeq = (S.turnSeq || 0) + 1; const mySeq = S.turnSeq;
   const m = mode();
   const shown = action ? '（' + action.label + '）' : line;
   add('user' + (action ? ' act' : ''), shown);
@@ -704,7 +707,6 @@ async function turn(line, action) {
   const band = (ini.bands || []).find((b) => S.affection >= b && !S.bandsDone.includes(b));
   const wantInitiative = !endKind && S.turn < cfg.scenario.maxTurns && S.turn - S.lastInitiativeTurn >= 2 && (band != null || (S.affection >= (ini.minAffection || 60) && Math.random() < (ini.chance || 0)));
   if (band != null) S.bandsDone.push(band);
-  if (wantInitiative) heroineInitiative(rec);
   // 3. 声: 台詞を本音の色で読む
   if ($('voice').checked && w && lineVoice) {
     try {
@@ -715,6 +717,8 @@ async function turn(line, action) {
     metaEl.innerHTML = tl();
   } else clockMark('Voice', null);
 
+  // 4. 彼女から振るのは、返事の声が鳴り終わってから（返事の文字を上書きしない）。その間に次の手が送られたらやめる
+  if (wantInitiative) { const waitMs = rec.tts && rec.tts.kind !== 'none' ? Math.max(400, (playing.size ? (nextAt - ctx().currentTime) * 1000 : 0) + 300) : 900; setTimeout(() => { if (S.turnSeq === mySeq && !S.over && !S.busy) heroineInitiative(rec); }, waitMs); }
   rec.affectionAfter = S.affection;
   S.turns.push(rec);
   fetch('/api/log', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rec) }).catch(() => {});
@@ -724,17 +728,17 @@ async function turn(line, action) {
 }
 
 async function heroineInitiative(prevRec) {
-  S.lastInitiativeTurn = S.turn;
-  const pending = add('her pending', '……');
+  S.lastInitiativeTurn = S.turn; const mySeq = S.turnSeq;
   try {
     const w = await post('/api/words', { history: S.history, line: '', initiative: true, affection: S.affection, playerName: S.playerName, heroineName: S.heroineName, topics: S.topics, episode: S.episode && S.episode.id });
+    if (S.turnSeq !== mySeq || S.over) return; // 待っている間に次の手が送られた
     const text = plain(w.line);
-    pending.className = 'msg her'; pending.textContent = text;
+    add('her', text);
     S.history.push({ role: 'assistant', text: text });
     S.probe = true; prevRec.initiative = { line: text, mood: w.mood };
     setFace(w.mood, null, { quiet: true });
     if ($('voice').checked && w.line) { try { await speak(w.line, w.mood, null, { kind: 'line', affection: S.affection }); } catch (e) { /* 声は無くても進む */ } }
-  } catch (e) { pending.remove(); }
+  } catch (e) { /* 振れなければ黙る */ }
 }
 function ending(force) {
   const e = cfg.scenario.endings;
