@@ -255,8 +255,9 @@ const server = http.createServer(async (req, res) => {
       if (inp.probe && !inp.action && att) {
         // 流し方で段階を分ける（前は流したら必ず「強」の怒りで、「忘れちゃった」程度でも睨まれた）:
         //   茶化す・上辺の褒め → 怒り・強（-2）／ はぐらかす・話をそらす → 怒り・中（-2）／ 曖昧（忘れた・分からない）→ 困惑・弱〜中（-1。怒らない）
+        //   「答えている」が 0.4 以上なら流していない扱い（冗談が添えてあるだけ）。強い怒りは、茶化す・上辺の褒め だけで 0.6 以上のときだけ
         const p = att.probs || {}; const harsh = (p.tease || 0) + (p.flatter || 0); const bad = harsh + (p.deflect || 0);
-        if (bad >= 0.6) { r.moodByJev = r.mood; r.mood = 'upset'; r.forced = 'dismiss'; r.deltaRound = -2; const strong = harsh >= 0.35; r.hurt = Math.max(r.hurt ?? 0, strong ? 0.85 : 0.7); r.moodProbs.upset = Math.max(r.moodProbs.upset || 0, strong ? 0.9 : 0.7); }
+        if (bad >= 0.6 && (p.sincere || 0) < 0.4) { r.moodByJev = r.mood; r.mood = 'upset'; r.forced = 'dismiss'; r.deltaRound = -2; const strong = harsh >= 0.6; r.hurt = Math.max(r.hurt ?? 0, strong ? 0.85 : 0.7); r.moodProbs.upset = Math.max(r.moodProbs.upset || 0, strong ? 0.9 : 0.7); }
         else if ((p.vague || 0) >= 0.5 && (p.sincere || 0) < 0.6) { r.moodByJev = r.mood; r.mood = 'puzzled'; r.forced = 'vague'; r.deltaRound = Math.min(r.deltaRound, -1); r.hurt = Math.max(r.hurt ?? 0, 0.3); r.moodProbs.puzzled = Math.max(r.moodProbs.puzzled || 0, 0.65); }
         else if ((p.sincere || 0) >= 0.6) { r.sincere = true; r.deltaRound = Math.min(2, Math.max(r.deltaRound, 1) + 1); }
       }
