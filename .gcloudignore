@@ -1,0 +1,7 @@
+# gcloud run deploy --source . のアップロードから除く（.gitignore と同じ＋制作記録）
+.git
+.gitignore
+.env
+_out/
+node_modules/
+making/
