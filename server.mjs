@@ -375,5 +375,6 @@ server.listen(PORT, HOST, () => {
   console.log('#Jevカノ http://127.0.0.1:' + PORT + '/' + (HOST === '0.0.0.0' ? '  ／ 同じ Wi-Fi のスマホから: ' + lanUrls().join(' ') : '  （スマホから遊ぶなら HOST=0.0.0.0）'));
   console.log('  反射 Jev: ' + (has.jev ? 'あり' : 'なし（TYPESAFE_API_KEY）') + ' / 言葉 ' + DEFAULT_MODEL + ': ' + (has.llm ? 'あり' : 'なし（ANTHROPIC_API_KEY）') + ' / 声 ' + DEFAULT_TTS_MODEL + ': ' + (RELAY_URL ? '中継 ' + RELAY_URL : has.tts ? 'あり' : 'なし（GEMINI_API_KEY か GOOGLE_API_KEY）'));
   console.log('  ログ: ' + path.join(OUT, 'turns.jsonl'));
+  const envFile = path.join(here, '.env'); console.log('  設定: ' + envFile + (fs.existsSync(envFile) ? '' : '（無い。環境変数だけで動いている。作るなら .env.example をコピー）'));
   prewarmSfx();
 });
