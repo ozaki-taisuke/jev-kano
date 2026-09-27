@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.mjs",
     "bench": "node bench.mjs",
-    "sfx:bundle": "node -e \"const fs=require('fs');fs.mkdirSync('public/sfx',{recursive:true});for(const f of fs.readdirSync('_out/sfx'))if(/_[0-9a-f]{8}.pcm$/.test(f))fs.copyFileSync('_out/sfx/'+f,'public/sfx/'+f);console.log('bundled')\"",
+    "sfx:bundle": "node bundle_sfx.mjs",
     "test": "node smoke.mjs"
   },
   "dependencies": {

@@ -18,8 +18,8 @@ import { reflex, judgeReply } from './lib/jev.mjs';
 import { words, DEFAULT_MODEL } from './lib/llm.mjs';
 import { voice, voiceStream, DEFAULT_TTS_MODEL, DEFAULT_VOICE } from './lib/tts.mjs';
 import { INTERJECTIONS, MOODS, TIER_INTENSITY, tierOf, FALLBACK_LINES } from './lib/criteria.mjs';
-import { createHash } from 'node:crypto';
-import { styleFor, TTS_TEXT_VERSION, forSpeech } from './lib/tts.mjs';
+import { forSpeech } from './lib/tts.mjs';
+import { sfxName, sfxText, fixedName, fixedTexts as fixedTextsOf, fixedMood as fixedMoodOf } from './lib/names.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 loadEnv(path.join(here, '.env'));
@@ -40,21 +40,25 @@ function faceImages() {
   let files = [];
   try { files = fs.readdirSync(FACES_DIR); } catch { return out; }
   for (const f of files) { const m = f.match(/^(joy|shy|puzzled|upset|calm)(_strong)?\.(png|webp|jpe?g)$/i); if (m) { const k = m[1].toLowerCase() + (m[2] || ''); if (!out[k]) out[k] = '/faces/' + f; } }
+  // 切り抜き用（背景が一様な緑）。public/faces/green/ にあれば画面側で緑を透明にして背景の上に立たせる
+  let greens = []; try { greens = fs.readdirSync(path.join(FACES_DIR, 'green')); } catch {}
+  for (const f of greens) { const m = f.match(/^(joy|shy|puzzled|upset|calm)(_strong)?\.(png|webp|jpe?g)$/i); if (m) { out.green = out.green || {}; out.green[m[1].toLowerCase() + (m[2] || '')] = '/faces/green/' + f; } }
   return out;
 }
 
+// 背景の絵（任意）: public/bg/*.jpg。id → URL
+function bgImages() {
+  const out = {}; let files = [];
+  try { files = fs.readdirSync(path.join(here, 'public', 'bg')); } catch { return out; }
+  for (const f of files) { const m = f.match(/^([a-z0-9_-]+)\.(png|webp|jpe?g)$/i); if (m) out[m[1]] = '/bg/' + f; }
+  return out;
+}
 // 反射の一言の音声（本音ごとに 1 度だけ TTS して _out/sfx/ に PCM で置く。2 度目からはディスクから即返す）
 const SFX_DIR = path.join(OUT, 'sfx');
 const sfxPending = {};
-const sfxText = (kind, mood, tier) => ((INTERJECTIONS[kind] || {})[mood] || [])[tier] || '';
-// ファイル名に「文・声・モデル・演技指示」のハッシュを含める → 変えていない一言は作り直さない（1 日の回数上限を守るため）
 const SFX_BUNDLED = path.join(here, 'public', 'sfx'); // 同梱の一言（Git 管理）。API が無くても鳴る
 // 名前 → 声（scenario.voices）。無ければ既定の声
 const voiceFor = (heroineName) => ((scenario.voices || {})[heroineName] || {}).id || DEFAULT_VOICE;
-const sfxName = (kind, mood, tier, voice = DEFAULT_VOICE) => {
-  const h = createHash('sha1').update([TTS_TEXT_VERSION, sfxText(kind, mood, tier), voice, DEFAULT_TTS_MODEL, styleFor(mood, { kind, intensity: TIER_INTENSITY[tier] })].join('|')).digest('hex').slice(0, 8);
-  return kind + '_' + mood + '_' + tier + '_' + h + '.pcm';
-};
 const sfxFile = (kind, mood, tier, voice) => path.join(SFX_DIR, sfxName(kind, mood, tier, voice));
 const sfxExisting = (kind, mood, tier, voice) => [path.join(SFX_BUNDLED, sfxName(kind, mood, tier, voice)), sfxFile(kind, mood, tier, voice)].find((f) => fs.existsSync(f));
 async function sfxPcm(kind, mood, tier, voice = DEFAULT_VOICE) {
@@ -131,12 +135,18 @@ const server = http.createServer(async (req, res) => {
       return res.end(fs.readFileSync(INDEX));
     }
     if (req.method === 'GET' && url.pathname === '/api/config') {
-      return send(res, 200, { has, llmModel: DEFAULT_MODEL, ttsModel: DEFAULT_TTS_MODEL, ttsVoice: DEFAULT_VOICE, scenario, faces: faceImages(), interjections: INTERJECTIONS, tiers: [0.6, 0.85], sfxReady: sfxStatus().ready.length, fallbackLines: FALLBACK_LINES, voices: scenario.voices || {} });
+      return send(res, 200, { has, llmModel: DEFAULT_MODEL, ttsModel: DEFAULT_TTS_MODEL, ttsVoice: DEFAULT_VOICE, scenario, faces: faceImages(), backgrounds: bgImages(), interjections: INTERJECTIONS, tiers: [0.6, 0.85], sfxReady: sfxStatus().ready.length, fallbackLines: FALLBACK_LINES, voices: scenario.voices || {} });
     }
     if (req.method === 'GET' && url.pathname.startsWith('/faces/')) {
-      const name = path.basename(url.pathname); const ext = path.extname(name).toLowerCase();
+      const name = path.basename(url.pathname); const ext = path.extname(name).toLowerCase(); const sub = url.pathname.startsWith('/faces/green/') ? 'green' : '';
       if (!MIME[ext] || !/^(joy|shy|puzzled|upset|calm)(_strong)?\./i.test(name)) return send(res, 404, { error: 'not found' });
-      try { const buf = fs.readFileSync(path.join(FACES_DIR, name)); res.writeHead(200, { 'Content-Type': MIME[ext], 'Cache-Control': 'no-store' }); return res.end(buf); }
+      try { const buf = fs.readFileSync(path.join(FACES_DIR, sub, name)); res.writeHead(200, { 'Content-Type': MIME[ext], 'Cache-Control': 'public, max-age=600' }); return res.end(buf); }
+      catch { return send(res, 404, { error: 'not found' }); }
+    }
+    if (req.method === 'GET' && url.pathname.startsWith('/bg/')) {
+      const name = path.basename(url.pathname); const ext = path.extname(name).toLowerCase();
+      if (!MIME[ext] || !/^[a-z0-9_-]+\.(png|webp|jpe?g)$/i.test(name)) return send(res, 404, { error: 'not found' });
+      try { const buf = fs.readFileSync(path.join(here, 'public', 'bg', name)); res.writeHead(200, { 'Content-Type': MIME[ext], 'Cache-Control': 'public, max-age=3600' }); return res.end(buf); }
       catch { return send(res, 404, { error: 'not found' }); }
     }
     if (req.method === 'GET' && url.pathname === '/api/fixed') {
@@ -231,8 +241,8 @@ async function prewarmSfx() {
   if (!has.tts || process.env.PREWARM_SFX === '0') return;
   const missing = [];
   for (const kind of Object.keys(INTERJECTIONS)) for (const mood of Object.keys(INTERJECTIONS[kind])) for (let tier = 0; tier < 3; tier++) if (forSpeech(sfxText(kind, mood, tier)) && !sfxExisting(kind, mood, tier)) missing.push([kind, mood, tier]);
-  const gap = Number(process.env.PREWARM_INTERVAL_MS || 3000); // 無料枠（1 分 3 回）なら 22000 にする
-  for (const text of fixedTexts()) { const mood = (text === scenario.opening || (scenario.episodes || []).some((ep) => ep.opening === text)) ? 'shy' : 'calm'; if (!fs.existsSync(path.join(SFX_BUNDLED, fixedName(text, mood, DEFAULT_VOICE))) && !fs.existsSync(path.join(SFX_DIR, fixedName(text, mood, DEFAULT_VOICE)))) missing.push(['fixed', text, mood]); }
+  const gap = Number(process.env.PREWARM_INTERVAL_MS || 8000); // 有料 Tier 1 でも 1 分の回数上限に当たるので 8 秒。無料枠（1 分 3 回）なら 22000 にする
+  for (const text of fixedTexts()) { const mood = fixedMood(text); if (!fs.existsSync(path.join(SFX_BUNDLED, fixedName(text, mood, DEFAULT_VOICE))) && !fs.existsSync(path.join(SFX_DIR, fixedName(text, mood, DEFAULT_VOICE)))) missing.push(['fixed', text, mood]); }
   if (missing.length) console.log('  一言の音声を ' + missing.length + ' 個作ります（' + gap / 1000 + ' 秒おき。PREWARM_SFX=0 で止められる・PREWARM_INTERVAL_MS で間隔）');
   for (let i = 0; i < missing.length; i++) {
     if (i > 0) await new Promise((r) => setTimeout(r, gap));
@@ -242,21 +252,17 @@ async function prewarmSfx() {
         if (kind === 'fixed') { await fixedPcm(mood, tier, DEFAULT_VOICE); console.log('  決まった台詞の音声を用意: 「' + mood.slice(0, 18) + '…」'); break; }
         await sfxPcm(kind, mood, tier); console.log('  一言の音声を用意: ' + kind + '/' + mood + '/' + tier + '「' + sfxText(kind, mood, tier) + '」'); break; }
       catch (e) {
-        const m = e.message.match(/retry in (?:(\d+)m)?(\d+)?s?/i);
-        const waitSec = m ? (Number(m[1] || 0) * 60 + Number(m[2] || 0)) : 20;
+        const m = e.message.match(/retry in (?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
+        const waitSec = m ? (Number(m[1] || 0) * 3600 + Number(m[2] || 0) * 60 + Number(m[3] || 0)) : 20;
         if (/429|rate limit/i.test(e.message) && attempt < 2 && waitSec <= 60) { await new Promise((r) => setTimeout(r, (waitSec + 1) * 1000)); continue; }
-        console.log('  一言の音声は後で: ' + kind + '/' + mood + '/' + tier + '（' + e.message.slice(0, 120) + '）');
+        console.log('  一言の音声は後で: ' + kind + '/' + mood + '/' + tier + '（' + e.message.slice(0, 120) + '）'); break;
       }
     }
   }
 }
 // 決まった台詞（冒頭・結末）。scenario にある文だけ受け付ける（GET で任意の文を読ませないため）
-function fixedTexts() {
-  const t = [scenario.opening]; for (const ep of scenario.episodes || []) if (ep.opening) t.push(ep.opening);
-  for (const e of Object.values(scenario.endings || {})) if (e && e.text) t.push(e.text);
-  return t.filter(Boolean);
-}
-const fixedName = (text, mood, voice) => 'fixed_' + createHash('sha1').update([TTS_TEXT_VERSION, text, mood, voice, DEFAULT_TTS_MODEL, styleFor(mood, { kind: 'line', intensity: 0.7 })].join('|')).digest('hex').slice(0, 8) + '.pcm';
+const fixedTexts = () => fixedTextsOf(scenario);
+const fixedMood = (text) => fixedMoodOf(scenario, text);
 const fixedPending = {};
 async function fixedPcm(text, mood, voice) {
   const name = fixedName(text, mood, voice);

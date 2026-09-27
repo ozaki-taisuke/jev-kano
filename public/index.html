@@ -4,242 +4,268 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>#Jevカノ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#f5efe3; --panel:#fffdf8; --ink:#2a2d3f; --sub:#6b6f85; --accent:#e8834a; --accent2:#f0a35a; --ok:#3aa76d; --warn:#c77d12; --bad:#d9534f; --line:#e6ddcc; --jev:#3b82c6; --llm:#e8834a; --dock:190px; --field:#fbf7ef; --bubble-user:#e6f0fb; --bubble-her:#fff1e4; --chip:#f6efe4; }
-  * { box-sizing: border-box; }
-  html { scroll-padding-bottom: var(--dock); }
-  body { margin:0; padding-bottom: var(--dock); background:linear-gradient(180deg, #fbe7cf 0%, var(--bg) 42%); color:var(--ink); font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic UI",system-ui,sans-serif; font-size:15px; }
-  header { display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; padding:8px 16px; border-bottom:1px solid var(--line); }
-  header h1 { font-size:17px; margin:0; letter-spacing:.04em; }
-  header label { color:var(--sub); font-size:13px; display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
-  header .models { color:var(--sub); font-size:12px; margin-left:auto; }
-  main { display:grid; grid-template-columns:300px 1fr; gap:14px; padding:14px 16px 0; max-width:1120px; margin:0 auto; align-items:start; }
-  @media (max-width:800px) { main { grid-template-columns:1fr; } }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:12px; }
-  .face { display:flex; flex-direction:column; align-items:center; gap:6px; }
-  .face .stage { width:240px; height:256px; display:flex; align-items:center; justify-content:center; position:relative; }
-  .face svg, .face img.photo { width:240px; height:256px; object-fit:contain; border-radius:14px; }
-  @media (max-height:640px) { .face .stage, .face svg, .face img.photo { width:170px; height:182px; } }
-  .face .name { font-weight:700; letter-spacing:.06em; }
-  .face .mood { color:var(--sub); font-size:13px; min-height:1.3em; text-align:center; }
-  .face .mood b { color:var(--jev); font-weight:600; }
-  .face .mood b.llm { color:var(--llm); }
-  .bar { width:100%; height:8px; background:#eadfce; border-radius:6px; overflow:hidden; }
-  .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); width:50%; transition:width .35s; }
-  .aff { display:flex; justify-content:space-between; width:100%; color:var(--sub); font-size:12px; }
-  .clock { width:100%; font-variant-numeric:tabular-nums; font-size:12px; color:var(--sub); border-top:1px dashed var(--line); padding-top:6px; }
-  .clock .row { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:1px 0; }
-  .clock .lbl { min-width:3.5em; }
-  .clock .val { font-size:14px; color:var(--ink); min-width:4.5em; text-align:right; }
-  .clock .val.run { color:var(--warn); }
-  .clock .val.jev { color:var(--jev); }
-  .clock .val.llm { color:var(--llm); }
-  .clock .track { flex:1; height:6px; background:#eadfce; border-radius:3px; position:relative; overflow:hidden; }
-  .clock .track i { position:absolute; left:0; top:0; height:100%; width:0; background:currentColor; opacity:.7; }
+  :root {
+    --ink:#2a2d3f; --sub:#6b6f85; --accent:#e8834a; --accent2:#f0a35a; --ok:#3aa76d; --warn:#c77d12; --bad:#d9534f;
+    --jev:#3b82c6; --llm:#e8834a; --line:rgba(120,90,60,.22); --panel:rgba(255,251,244,.90); --panel-solid:#fffbf3; --chip:rgba(255,255,255,.7); --field:rgba(255,255,255,.85);
+    --win:220px; --stage:min(56vh, 460px);
+    --font:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP","Yu Gothic UI",system-ui,sans-serif;
+    --logo:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:#3a2a2a; color:var(--ink); font-family:var(--font); font-size:15px; overflow:hidden; }
+  /* 背景の絵 */
+  .bg { position:fixed; inset:0; background:#4a3a3a center/cover no-repeat; transition:filter .8s; z-index:0; }
+  .bg::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.08) 0%, rgba(0,0,0,0) 30%, rgba(30,20,30,.35) 100%); }
+  body.ep-blackout .bg { filter:brightness(.38) saturate(.6) hue-rotate(-20deg); }
+  body.ep-wings .bg { filter:brightness(.45) saturate(.7) hue-rotate(20deg) contrast(1.1); }
+  /* 上の帯 */
+  .hud { position:fixed; left:0; right:0; top:0; z-index:6; display:flex; align-items:center; gap:10px; padding:8px 14px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.5); pointer-events:none; }
+  .hud > * { pointer-events:auto; white-space:nowrap; }
+  @media (max-width:900px) { .hud { gap:6px; padding:6px 8px; } .hud .gauge .bar { width:70px; } .hud .stat, .hud button, .hud label, .hud .gauge { padding-left:8px; padding-right:8px; } }
+  @media (max-width:600px) { .hud { flex-wrap:wrap; row-gap:4px; } .hud .mini { display:none; } .hud .sp { display:none; } .hud .gauge .bar { width:56px; } .hud .stat, .hud button, .hud label, .hud .gauge { font-size:11px; padding:3px 8px; } .clock { width:200px; top:auto; bottom:calc(var(--win) + 6px); right:6px; } }
+  .hud .mini { height:34px; width:auto; filter:drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+  .hud .sp { flex:1; }
+  .hud .gauge { display:flex; align-items:center; gap:8px; font-size:12px; background:rgba(30,25,40,.45); border:1px solid rgba(255,255,255,.25); border-radius:999px; padding:4px 12px 4px 10px; backdrop-filter:blur(6px); }
+  .hud .gauge .bar { width:110px; height:8px; background:rgba(255,255,255,.25); border-radius:6px; overflow:hidden; }
+  .hud .gauge .bar i { display:block; height:100%; background:linear-gradient(90deg, #ffb37a, #ff6f91); width:50%; transition:width .35s; }
+  .hud .stat { font-size:12px; background:rgba(30,25,40,.45); border:1px solid rgba(255,255,255,.25); border-radius:999px; padding:4px 12px; backdrop-filter:blur(6px); white-space:nowrap; }
+  .hud .stat b { font-weight:600; margin-left:4px; }
+  .hud button, .hud label { font:inherit; font-size:12px; color:#fff; background:rgba(30,25,40,.45); border:1px solid rgba(255,255,255,.3); border-radius:999px; padding:4px 12px; cursor:pointer; backdrop-filter:blur(6px); display:inline-flex; align-items:center; gap:5px; }
+  .hud button:hover, .hud label:hover { border-color:#fff; }
+  .hud .models { font-size:11px; opacity:.85; }
+  .notice { position:fixed; left:50%; top:52px; transform:translateX(-50%); z-index:6; font-size:12px; color:#fff; background:rgba(199,125,18,.85); border-radius:999px; padding:4px 12px; max-width:90vw; text-align:center; }
+  .notice:empty { display:none; }
+  /* 立ち絵 */
+  .stage { position:fixed; z-index:2; width:var(--stage); height:var(--stage); left:max(4vw, calc(50vw - 560px)); bottom:calc(var(--win) - 12px); }
+  @media (max-width:800px) { .stage { left:50%; transform:translateX(-50%); width:min(88vw, calc(100vh - var(--win) - 60px)); height:auto; aspect-ratio:1; } }
+  .stage svg, .stage img.photo { width:100%; height:100%; object-fit:contain; display:block; filter:drop-shadow(0 10px 18px rgba(0,0,0,.35)); }
+  .stage img.photo.framed { border-radius:18px; border:2px solid rgba(255,255,255,.75); box-shadow:0 12px 30px rgba(0,0,0,.35); }
+  #photoZones { position:absolute; inset:0; }
+  .pz { position:absolute; border-radius:45%; cursor:pointer; background:radial-gradient(circle, rgba(255,255,255,.9), rgba(255,255,255,0) 70%); opacity:0; transition:opacity .15s; }
+  .pz:hover { opacity:.35; }
+  .pz.warn:hover { background:radial-gradient(circle, rgba(255,107,107,.9), rgba(255,107,107,0) 70%); }
+  .zone { fill:#fff; fill-opacity:0; transition:fill-opacity .15s; } .zone:hover { fill-opacity:.16; }
+  .zoneTip { position:absolute; left:50%; bottom:8px; transform:translateX(-50%); font-size:12px; color:var(--jev); background:rgba(255,253,248,.94); border:1px solid var(--line); border-radius:999px; padding:2px 10px; pointer-events:none; opacity:0; transition:opacity .15s; white-space:nowrap; }
+  .zoneTip.on { opacity:1; }
+  .pop { animation:pop .28s cubic-bezier(.2,.9,.3,1.4); }
+  @keyframes pop { 0% { transform:scale(.985) translateY(3px); } 100% { transform:scale(1) translateY(0); } }
+  @media (max-width:800px) { .pop { animation-name:popM; } @keyframes popM { 0% { transform:translateX(-50%) scale(.985); } 100% { transform:translateX(-50%) scale(1); } } }
+  .lid { animation:blink 4.2s ease-in-out infinite; transform-box:fill-box; transform-origin:50% 40%; }
+  @keyframes blink { 0%,95.5%,100% { transform:scaleY(1); } 97.5% { transform:scaleY(.06); } }
+  /* メッセージ窓（下） */
+  .msgwin { position:fixed; left:50%; bottom:10px; transform:translateX(-50%); width:min(1120px, calc(100vw - 20px)); z-index:5; background:var(--panel); border:1px solid rgba(255,255,255,.8); box-shadow:0 10px 40px rgba(0,0,0,.35), inset 0 0 0 1px var(--line); border-radius:18px; backdrop-filter:blur(10px); padding:14px 18px 12px; }
+  .msgwin .prev { font-size:12px; color:var(--sub); min-height:1.4em; margin-bottom:2px; white-space:pre-wrap; }
+  .msgwin .prev:empty { display:none; }
+  .msgwin .plate { display:inline-block; font-family:var(--logo); font-weight:700; font-size:14px; letter-spacing:.08em; color:#fff; background:linear-gradient(90deg, var(--accent), #ff6f91); border-radius:999px; padding:2px 14px; margin-bottom:6px; box-shadow:0 2px 6px rgba(232,131,74,.35); }
+  .msgwin .plate.me { background:linear-gradient(90deg, #5aa0e0, var(--jev)); box-shadow:0 2px 6px rgba(59,130,198,.35); }
+  .msgwin .plate:empty { display:none; }
+  .msgwin .text { font-size:17px; line-height:1.75; min-height:3.2em; max-height:26vh; overflow:auto; white-space:pre-wrap; position:relative; }
+  .msgwin .text.narr { color:var(--sub); font-size:15px; }
+  .msgwin .text .say { color:var(--jev); display:block; }
+  .msgwin .text .line { display:block; margin-top:.5em; animation:fadeIn .35s ease-out; }
+  .msgwin .text.pending { color:var(--sub); }
+  .msgwin .next { display:block; text-align:right; color:var(--accent); font-size:13px; animation:bob 1.1s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(3px); } }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  .msgwin .dock { border-top:1px dashed var(--line); margin-top:10px; padding-top:8px; display:flex; flex-direction:column; gap:6px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .chips .lbl { font-size:12px; color:var(--sub); margin-right:2px; }
+  .chips button { background:var(--chip); color:var(--ink); border:1px solid var(--line); border-radius:999px; padding:5px 12px; font:inherit; font-size:13px; cursor:pointer; }
+  .chips button:hover { border-color:var(--accent); background:#fff; }
+  .row2 { display:flex; gap:8px; }
+  textarea { flex:1; resize:none; height:42px; border-radius:10px; border:1px solid var(--line); background:var(--field); color:var(--ink); padding:8px 10px; font:inherit; }
+  textarea:focus { outline:1px solid var(--accent); }
+  button.send { background:linear-gradient(180deg, var(--accent2), var(--accent)); color:#fff; border:0; border-radius:10px; padding:0 20px; font:inherit; font-weight:700; cursor:pointer; box-shadow:0 2px 6px rgba(232,131,74,.4); }
+  button.send:disabled { opacity:.5; cursor:default; box-shadow:none; }
+  @media (max-height:560px) { .chips { display:none; } }
+  /* 記録（ログ）・遊び方・結末 */
+  .modal { position:fixed; inset:0; background:rgba(20,16,30,.6); display:none; align-items:center; justify-content:center; padding:20px; z-index:30; overflow:auto; }
+  .modal .box { background:var(--panel-solid); border:1px solid var(--line); border-radius:16px; padding:22px 24px; max-width:680px; width:100%; max-height:90vh; overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,.4); }
+  .modal h3 { margin:0 0 10px; font-family:var(--logo); font-size:18px; color:var(--accent); }
+  .modal dl { margin:0; }
+  .modal dt { color:var(--accent2); font-weight:600; margin-top:10px; font-size:13px; }
+  .modal dd { margin:2px 0 0; line-height:1.7; font-size:14px; }
+  .modal .close { margin-top:14px; background:var(--accent); color:#fff; border:0; border-radius:10px; padding:8px 18px; font:inherit; font-weight:700; cursor:pointer; }
+  .modal label { display:block; margin-top:12px; color:var(--sub); font-size:13px; }
   .log { display:flex; flex-direction:column; gap:10px; min-height:120px; }
   .msg { padding:10px 12px; border-radius:12px; max-width:92%; line-height:1.6; white-space:pre-wrap; }
-  .msg.user { align-self:flex-end; background:var(--bubble-user); }
+  .msg.user { align-self:flex-end; background:#e6f0fb; }
   .msg.user.act { background:transparent; border:1px dashed var(--line); color:var(--sub); }
-  .msg.her { align-self:flex-start; background:var(--bubble-her); border-left:3px solid var(--accent); }
+  .msg.her { align-self:flex-start; background:#fff1e4; border-left:3px solid var(--accent); }
   .msg.her.pending { color:var(--sub); font-style:italic; }
   .msg.her .say { color:var(--jev); display:block; }
-  .msg.her .line { display:block; margin-top:.9em; animation:fadeIn .35s ease-out; }
-  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-  .msg.intro { align-self:stretch; max-width:none; background:var(--chip); border:1px dashed var(--line); color:var(--sub); font-size:13px; line-height:1.7; }
+  .msg.her .line { display:block; margin-top:.9em; }
+  .msg.intro { align-self:stretch; max-width:none; background:#f6efe4; border:1px dashed var(--line); color:var(--sub); font-size:13px; line-height:1.7; }
   .meta { font-size:12px; color:var(--sub); display:flex; flex-wrap:wrap; gap:6px 12px; align-self:flex-start; padding-left:4px; align-items:center; }
   .meta b { color:var(--ink); font-weight:500; }
   .tag { display:inline-block; padding:1px 8px; border-radius:999px; font-size:11px; border:1px solid var(--line); }
   .tag.bad { border-color:var(--bad); color:var(--bad); }
-  /* 入力欄は画面の下に固定 */
-  .dock { position:fixed; left:0; right:0; bottom:0; background:rgba(255,253,248,.96); border-top:1px solid var(--line); padding:8px 16px 10px; z-index:5; }
-  .dock .inner { max-width:1120px; margin:0 auto; display:flex; flex-direction:column; gap:6px; }
-  .chips { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-  .chips .lbl { font-size:12px; color:var(--sub); margin-right:2px; }
-  .chips button { background:var(--chip); color:var(--ink); border:1px solid var(--line); border-radius:999px; padding:5px 12px; font-size:13px; cursor:pointer; }
-  .chips button:hover { border-color:var(--accent); }
-  .chips button.act { border-color:#cfd8e6; color:var(--ink); }
-  .chips button.act:hover { border-color:var(--jev); }
-  .row2 { display:flex; gap:8px; }
-  textarea { flex:1; resize:none; height:46px; border-radius:10px; border:1px solid var(--line); background:var(--field); color:var(--ink); padding:8px 10px; font:inherit; }
-  textarea:focus { outline:1px solid var(--accent); }
-  button.send { background:var(--accent); color:#fff; border:0; border-radius:10px; padding:0 18px; font-weight:700; cursor:pointer; }
-  button.send:disabled { opacity:.5; cursor:default; }
-  .hint { font-size:11px; color:var(--sub); }
-  .foot { color:var(--sub); font-size:12px; line-height:1.7; padding:8px 16px 16px; max-width:1120px; margin:0 auto; }
-  .ending { position:fixed; inset:0; background:rgba(42,45,63,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:9; }
-  .ending .box { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:520px; width:100%; text-align:center; }
-  .ending h2 { margin:0 0 8px; font-size:18px; }
-  .ending p { margin:8px 0; line-height:1.7; }
-  .ending button { margin-top:10px; background:var(--accent); color:#fff; border:0; border-radius:10px; padding:8px 18px; font-weight:700; cursor:pointer; }
-  /* 通常表示では数字を出さない。body.debug で従来の表示 */
+  .ending { position:fixed; inset:0; background:rgba(20,16,30,.62); display:none; align-items:center; justify-content:center; padding:20px; z-index:9; }
+  .ending .box { background:var(--panel-solid); border:1px solid var(--line); border-radius:18px; padding:28px 26px; max-width:540px; width:100%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.4); }
+  .ending h2 { margin:0 0 8px; font-family:var(--logo); font-size:22px; color:var(--accent); }
+  .ending p { margin:8px 0; line-height:1.8; }
+  .ending button { margin-top:10px; background:var(--accent); color:#fff; border:0; border-radius:10px; padding:9px 20px; font:inherit; font-weight:700; cursor:pointer; }
+  .ending.perfect .box { border-color:var(--accent2); box-shadow:0 0 60px rgba(255,179,122,.55); }
+  .ending.perfect h2 { color:#ff6f91; }
+  /* 数字はデバッグ表示のときだけ */
   .dbg { display:none !important; }
   body.debug .dbg { display:revert !important; }
   body.debug .dbg.row { display:flex !important; }
   body.debug .meta.dbg { display:flex !important; }
-  /* 導入画面 */
-  .title { position:fixed; inset:0; background:linear-gradient(180deg, #fbe7cf 0%, var(--bg) 60%); z-index:20; display:flex; align-items:center; justify-content:center; padding:20px; overflow:auto; }
-  .title .box { max-width:640px; width:100%; background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:26px 28px; }
-  .title h2 { margin:0 0 4px; font-size:24px; letter-spacing:.06em; }
-  .title .sub { color:var(--sub); font-size:13px; margin-bottom:16px; }
-  .title p.intro { line-height:1.8; font-size:14px; color:var(--ink); background:var(--chip); border:1px dashed var(--line); border-radius:12px; padding:12px 14px; }
-  .title label.f { display:block; margin:12px 0 4px; color:var(--sub); font-size:13px; }
-  .title input, .title select { width:100%; border-radius:10px; border:1px solid var(--line); background:var(--field); color:var(--ink); padding:9px 10px; font:inherit; }
-  .title .start { margin-top:18px; width:100%; background:var(--accent); color:#fff; border:0; border-radius:12px; padding:12px; font-weight:700; font-size:15px; cursor:pointer; }
-  .title .note { color:var(--sub); font-size:12px; margin-top:12px; line-height:1.6; }
-  .help { background:var(--chip); color:var(--ink); border:1px solid var(--line); border-radius:999px; width:28px; height:28px; cursor:pointer; font-weight:700; }
-  .help:hover { border-color:var(--accent); }
-  .modal { position:fixed; inset:0; background:rgba(42,45,63,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:30; overflow:auto; }
-  .modal .box { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:22px 24px; max-width:640px; width:100%; max-height:90vh; overflow:auto; }
-  .modal h3 { margin:0 0 10px; font-size:17px; }
-  .modal dl { margin:0; }
-  .modal dt { color:var(--accent2); font-weight:600; margin-top:10px; font-size:13px; }
-  .modal dd { margin:2px 0 0; line-height:1.7; font-size:14px; }
-  .modal .close { margin-top:14px; background:var(--accent); color:#fff; border:0; border-radius:10px; padding:8px 18px; font-weight:700; cursor:pointer; }
-  .modal label { display:block; margin-top:12px; color:var(--sub); font-size:13px; }
-  .left { display:flex; justify-content:space-between; width:100%; color:var(--sub); font-size:12px; margin-top:2px; }
-  .toast { position:fixed; left:50%; top:64px; transform:translateX(-50%); background:#fff; border:1px solid var(--accent2); color:var(--accent2); border-radius:999px; padding:6px 14px; font-size:13px; z-index:40; animation:toastIn 2.6s ease-out forwards; }
+  body.debug label.dbg { display:inline-flex !important; }
+  .clock { position:fixed; right:12px; top:52px; z-index:6; width:230px; font-variant-numeric:tabular-nums; font-size:12px; color:#fff; background:rgba(30,25,40,.6); border:1px solid rgba(255,255,255,.25); border-radius:12px; padding:8px 10px; backdrop-filter:blur(6px); }
+  .clock .row { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:1px 0; }
+  .clock .lbl { min-width:3.5em; }
+  .clock .val { font-size:13px; min-width:4.5em; text-align:right; }
+  .clock .val.run { color:#ffd27a; } .clock .val.jev { color:#9fd3ff; } .clock .val.llm { color:#ffb37a; }
+  .clock .track { flex:1; height:6px; background:rgba(255,255,255,.2); border-radius:3px; position:relative; overflow:hidden; }
+  .clock .track i { position:absolute; left:0; top:0; height:100%; width:0; background:currentColor; opacity:.8; }
+  .mood { font-size:12px; color:#fff; margin-top:4px; }
+  .mood b { color:#9fd3ff; font-weight:600; } .mood b.llm { color:#ffb37a; }
+  .toast { position:fixed; left:50%; top:88px; transform:translateX(-50%); background:#fff; border:1px solid var(--accent2); color:var(--accent2); border-radius:999px; padding:6px 14px; font-size:13px; z-index:40; animation:toastIn 2.6s ease-out forwards; }
   @keyframes toastIn { 0% { opacity:0; transform:translate(-50%,-6px); } 12% { opacity:1; transform:translate(-50%,0); } 80% { opacity:1; } 100% { opacity:0; } }
-  .ending.perfect .box { border-color:var(--accent2); box-shadow:0 0 40px rgba(255,179,122,.35); }
-  .ending.perfect h2 { color:var(--accent2); }
-  .pop { animation:pop .28s cubic-bezier(.2,.9,.3,1.4); }
-  @keyframes pop { 0% { transform:scale(.97) translateY(2px); } 100% { transform:scale(1) translateY(0); } }
-  .zone { fill:#fff; fill-opacity:0; transition:fill-opacity .15s; }
-  #photoZones { position:absolute; inset:0; }
-  .pz { position:absolute; border-radius:40%; cursor:pointer; background:#fff; opacity:0; transition:opacity .15s; }
-  .pz:hover { opacity:.14; }
-  .pz.warn:hover { background:#ff6b6b; }
-  .zone:hover { fill-opacity:.16; }
-  .zoneTip { position:absolute; left:50%; bottom:6px; transform:translateX(-50%); font-size:12px; color:var(--jev); background:rgba(255,253,248,.92); border:1px solid var(--line); border-radius:999px; padding:2px 10px; pointer-events:none; opacity:0; transition:opacity .15s; white-space:nowrap; }
-  .zoneTip.on { opacity:1; }
-  @media (max-height:520px) { .dock .hint, .dock #chips { display:none; } :root { --dock:120px; } }
-  .lid { animation:blink 4.2s ease-in-out infinite; transform-box:fill-box; transform-origin:50% 40%; }
-  @keyframes blink { 0%,95.5%,100% { transform:scaleY(1); } 97.5% { transform:scaleY(.06); } }
+  .foot { position:fixed; left:0; right:0; bottom:0; color:#fff; font-size:11px; padding:4px 10px; background:rgba(0,0,0,.4); z-index:7; }
+  /* 開始画面 */
+  body.on-title .hud, body.on-title .msgwin, body.on-title .stage, body.on-title .clock, body.on-title .notice { display:none !important; }
+  .title { position:fixed; inset:0; z-index:20; overflow:auto; display:flex; flex-direction:column; align-items:center; padding:min(6vh, 48px) 16px 24px; background:linear-gradient(180deg, rgba(20,14,26,.25), rgba(20,14,26,.55)); }
+  .title > * { flex-shrink:0; }
+  .title .logo { width:min(88vw, 620px); height:auto; margin:0 auto 4px; display:block; filter:drop-shadow(0 8px 14px rgba(0,0,0,.45)); animation:logoIn 1s cubic-bezier(.2,.9,.3,1.2); }
+  @keyframes logoIn { 0% { opacity:0; transform:scale(.92) translateY(10px); } 100% { opacity:1; transform:none; } }
+  .title .sub { color:#fff; font-family:var(--logo); font-weight:700; letter-spacing:.14em; font-size:14px; text-shadow:0 1px 3px rgba(0,0,0,.6); margin-bottom:18px; background:rgba(30,25,40,.35); border-radius:999px; padding:4px 16px; }
+  .title .box { max-width:600px; width:100%; background:var(--panel); border:1px solid rgba(255,255,255,.8); border-radius:18px; padding:20px 24px; backdrop-filter:blur(10px); box-shadow:0 20px 60px rgba(0,0,0,.4); }
+  .title h2 { position:absolute; left:-9999px; }
+  .title p.intro { line-height:1.8; font-size:14px; color:var(--ink); background:rgba(255,255,255,.6); border:1px dashed var(--line); border-radius:12px; padding:12px 14px; margin:0 0 6px; }
+  .title p.goal { line-height:1.7; font-size:13px; color:#b3541e; margin:0; padding:8px 14px; border-left:3px solid var(--accent2); }
+  .title .cols { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
+  @media (max-width:560px) { .title .cols { grid-template-columns:1fr; } }
+  .title label.f { display:block; margin:12px 0 4px; color:var(--sub); font-size:12px; letter-spacing:.06em; }
+  .title input, .title select { width:100%; border-radius:10px; border:1px solid var(--line); background:var(--field); color:var(--ink); padding:9px 10px; font:inherit; }
+  .title .start { margin-top:18px; width:100%; background:linear-gradient(180deg, var(--accent2), var(--accent)); color:#fff; border:0; border-radius:12px; padding:13px; font-family:var(--logo); font-weight:900; font-size:17px; letter-spacing:.2em; cursor:pointer; box-shadow:0 6px 18px rgba(232,131,74,.45); }
+  .title .start:hover { filter:brightness(1.06); }
+  .title .note { color:var(--sub); font-size:11px; margin-top:12px; line-height:1.6; }
+  .title .credit { color:#fff; opacity:.8; font-size:11px; margin-top:14px; text-shadow:0 1px 2px rgba(0,0,0,.6); }
 </style>
 </head>
-<body>
-<header>
-  <h1 id="appTitle">#Jevカノ</h1>
-  <label class="dbg"><input type="radio" name="mode" value="reflex" checked> 反射モード（Jev が本音を先に決める）</label>
-  <label class="dbg"><input type="radio" name="mode" value="llm"> LLM だけ（言葉と一緒に顔が出る）</label>
-  <label><input type="checkbox" id="voice" checked> 声</label>
-  <button type="button" id="helpBtn" class="help" title="遊び方">？</button>
-  <label class="dbg"><input type="checkbox" id="debugToggle" checked> デバッグ</label>
+<body class="on-title">
+<div class="bg" id="bg"></div>
+
+<div class="hud">
+  <svg class="mini" viewBox="0 0 640 200" aria-hidden="true"><use href="#logoText"/></svg>
+  <h1 id="appTitle" style="position:absolute;left:-9999px">#Jevカノ</h1>
+  <span class="sp"></span>
+  <label class="dbg"><input type="radio" name="mode" value="reflex" checked> 反射</label>
+  <label class="dbg"><input type="radio" name="mode" value="llm"> LLM だけ</label>
   <span class="models dbg" id="models"></span>
-  <span class="models" id="sfxState" style="margin-left:auto;color:var(--warn)"></span>
-  <span class="models" id="notice" style="margin-left:0;color:var(--warn)"></span>
-</header>
-<main>
-  <section class="card face">
-    <div class="stage" id="stage">
-      <svg viewBox="-110 -125 220 250" id="faceSvg" aria-label="ヒロインの顔">
-        <defs>
-          <radialGradient id="iris" cx="50%" cy="35%" r="65%"><stop offset="0%" stop-color="#bfe4ff"/><stop offset="45%" stop-color="#4f8fe8"/><stop offset="100%" stop-color="#1b3a86"/></radialGradient>
-          <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#a48cf0"/><stop offset="100%" stop-color="#6d55c9"/></linearGradient>
-          <linearGradient id="hairDark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7e66d6"/><stop offset="100%" stop-color="#4a3699"/></linearGradient>
-          <linearGradient id="skinSh" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffe9de"/><stop offset="100%" stop-color="#ffd9c8"/></linearGradient>
-          <clipPath id="faceClip"><path d="M-70 -30 Q-74 36 -42 76 Q-16 98 0 98 Q16 98 42 76 Q74 36 70 -30 Q58 -88 0 -90 Q-58 -88 -70 -30 Z"/></clipPath>
-        </defs>
-        <!-- 後ろ髪（長い） -->
-        <path d="M-88 -40 Q-108 50 -92 125 L92 125 Q108 50 88 -40 Q76 -112 0 -114 Q-76 -112 -88 -40 Z" fill="url(#hairDark)"/>
-        <!-- 首と肩・ブラウス・襟・リボン -->
-        <path d="M-15 80 L-15 100 L15 100 L15 80 Z" fill="#f6cdb9"/>
-        <path d="M-92 125 Q-70 100 -20 96 L0 112 L20 96 Q70 100 92 125 Z" fill="#fbfbff"/>
-        <path d="M-20 96 L0 112 L20 96 L14 90 L0 104 L-14 90 Z" fill="#dfe3f5"/>
-        <g transform="translate(0 110)"><path d="M0 0 L-16 -8 L-14 8 Z" fill="#ff7fae"/><path d="M0 0 L16 -8 L14 8 Z" fill="#ff7fae"/><circle r="4" fill="#ff5c96"/><path d="M-3 3 L-8 20 M3 3 L8 20" stroke="#ff7fae" stroke-width="4" stroke-linecap="round"/></g>
-        <!-- 耳 -->
-        <ellipse cx="-70" cy="14" rx="7" ry="11" fill="#ffd9c8"/><ellipse cx="70" cy="14" rx="7" ry="11" fill="#ffd9c8"/>
-        <!-- 顔 -->
-        <path d="M-70 -30 Q-74 36 -42 76 Q-16 98 0 98 Q16 98 42 76 Q74 36 70 -30 Q58 -88 0 -90 Q-58 -88 -70 -30 Z" fill="url(#skinSh)"/>
-        <path d="M-62 30 Q-40 80 0 92 Q40 80 62 30" fill="none" stroke="#f4c5b0" stroke-width="2" opacity=".6"/>
-        <!-- ほほ -->
-        <ellipse id="blushL" cx="-46" cy="40" rx="15" ry="7" fill="#ff9fb8" opacity="0"/>
-        <ellipse id="blushR" cx="46" cy="40" rx="15" ry="7" fill="#ff9fb8" opacity="0"/>
-        <g id="blushLines" opacity="0" stroke="#ff7fae" stroke-width="1.6" stroke-linecap="round"><path d="M-54 36 l4 8 M-47 34 l4 8 M-40 36 l4 8 M40 36 l4 8 M47 34 l4 8 M54 36 l4 8"/></g>
-        <!-- 眉 -->
-        <path id="browL" d="M-48 -26 Q-34 -33 -16 -27" stroke="#6d55c9" stroke-width="3" fill="none" stroke-linecap="round"/>
-        <path id="browR" d="M16 -27 Q34 -33 48 -26" stroke="#6d55c9" stroke-width="3" fill="none" stroke-linecap="round"/>
-        <!-- 目（開いているとき） -->
-        <g id="eyesOpen">
-          <g id="eyeGL" transform="translate(-31 12)"><g class="lid">
-            <path d="M-19 -6 Q-17 -22 0 -22 Q17 -22 19 -6 Q17 14 0 16 Q-17 14 -19 -6 Z" fill="#fff"/>
-            <g id="irisL"><ellipse rx="11.5" ry="15.5" cy="-2" fill="url(#iris)"/><ellipse rx="5.5" ry="8" cy="0" fill="#0e1f4f"/><circle r="4.6" cx="-4.5" cy="-9" fill="#fff"/><circle r="2.2" cx="5" cy="5" fill="#fff" opacity=".95"/><ellipse rx="9" ry="4" cy="8" fill="#8fd0ff" opacity=".35"/></g>
-            <path d="M-20 -8 Q-16 -25 0 -25 Q16 -25 20 -8" stroke="#2a2140" stroke-width="4.5" fill="none" stroke-linecap="round"/>
-            <path d="M-20 -8 L-25 -13 M-14 -20 L-17 -26" stroke="#2a2140" stroke-width="3" stroke-linecap="round"/>
-            <path d="M-14 13 Q0 18 14 13" stroke="#2a2140" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/>
-          </g></g>
-          <g id="eyeGR" transform="translate(31 12)"><g class="lid">
-            <path d="M-19 -6 Q-17 -22 0 -22 Q17 -22 19 -6 Q17 14 0 16 Q-17 14 -19 -6 Z" fill="#fff"/>
-            <g id="irisR"><ellipse rx="11.5" ry="15.5" cy="-2" fill="url(#iris)"/><ellipse rx="5.5" ry="8" cy="0" fill="#0e1f4f"/><circle r="4.6" cx="-4.5" cy="-9" fill="#fff"/><circle r="2.2" cx="5" cy="5" fill="#fff" opacity=".95"/><ellipse rx="9" ry="4" cy="8" fill="#8fd0ff" opacity=".35"/></g>
-            <path d="M-20 -8 Q-16 -25 0 -25 Q16 -25 20 -8" stroke="#2a2140" stroke-width="4.5" fill="none" stroke-linecap="round"/>
-            <path d="M20 -8 L25 -13 M14 -20 L17 -26" stroke="#2a2140" stroke-width="3" stroke-linecap="round"/>
-            <path d="M-14 13 Q0 18 14 13" stroke="#2a2140" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/>
-          </g></g>
-        </g>
-        <!-- 目（閉じて笑う） -->
-        <g id="eyesClosed" opacity="0">
-          <path d="M-50 10 Q-31 -8 -12 10" stroke="#2a2140" stroke-width="4.5" fill="none" stroke-linecap="round"/>
-          <path d="M12 10 Q31 -8 50 10" stroke="#2a2140" stroke-width="4.5" fill="none" stroke-linecap="round"/>
-          <path d="M-52 10 L-56 6 M52 10 L56 6" stroke="#2a2140" stroke-width="3" stroke-linecap="round"/>
-        </g>
-        <!-- 鼻・口 -->
-        <path d="M2 34 Q5 38 1 40" stroke="#e8b3a0" stroke-width="2" fill="none" stroke-linecap="round"/>
-        <path id="mouth" d="M-7 55 Q0 59 7 55" stroke="#d9536f" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        <!-- 横の髪・前髪（顔の上に重ねる） -->
-        <path d="M-72 -30 Q-96 30 -84 118 Q-64 70 -60 -10 Z" fill="url(#hair)"/>
-        <path d="M72 -30 Q96 30 84 118 Q64 70 60 -10 Z" fill="url(#hair)"/>
-        <path d="M-76 -36 Q-72 -110 0 -112 Q72 -110 76 -36 Q70 -40 62 -22 Q58 -66 44 -30 Q36 -74 22 -36 Q10 -80 -4 -34 Q-18 -78 -32 -34 Q-44 -70 -56 -26 Q-64 -44 -76 -36 Z" fill="url(#hair)"/>
-        <path d="M-50 -86 Q-20 -104 20 -98" stroke="#d8ccff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".55"/>
-        <path d="M6 -110 Q10 -128 26 -124 Q14 -122 12 -110" fill="url(#hair)"/>
-        <!-- リボン -->
-        <g transform="translate(62 -72) rotate(-15)"><path d="M0 0 L-24 -13 L-19 11 Z" fill="#ff7fae"/><path d="M0 0 L24 -13 L19 11 Z" fill="#ff7fae"/><circle r="5.5" fill="#ff5c96"/></g>
-        <!-- 記号 -->
-        <path id="sweat" d="M70 -40 Q80 -24 70 -14 Q60 -24 70 -40 Z" fill="#8fd0ff" opacity="0"/>
-        <path id="anger" d="M-80 -60 l12 0 M-74 -66 l0 12 M-66 -60 l12 0 M-60 -66 l0 12" stroke="#ff6b6b" stroke-width="3.5" stroke-linecap="round" opacity="0"/>
-        <g id="sparkle" opacity="0" fill="#fff2a8"><path d="M78 -46 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3 Z"/><path d="M-88 4 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z"/></g>
-        <path id="dots" d="M60 -52 a3 3 0 1 0 .1 0 M70 -58 a3 3 0 1 0 .1 0 M80 -64 a3 3 0 1 0 .1 0" fill="#b7abcc" opacity="0"/>
-        <!-- 手（握れる） -->
-        <g id="handG" transform="translate(72 98)"><path d="M-14 26 Q-16 8 -6 2 Q0 -2 6 2 Q14 6 16 12 Q20 20 14 30 Q6 36 -4 34 Q-12 32 -14 26 Z" fill="#ffe9de" stroke="#f0c9b4" stroke-width="1.5"/><path d="M-4 4 L-2 -8 M4 4 L7 -7 M11 8 L15 -2" stroke="#f0c9b4" stroke-width="2" stroke-linecap="round"/></g>
-        <!-- 触れる場所（透明。hover で薄く光る） -->
-        <g id="zones" style="cursor:pointer">
-          <path class="zone" data-act="pat" data-label="頭をなでる" d="M-76 -36 Q-72 -110 0 -112 Q72 -110 76 -36 Q40 -58 0 -56 Q-40 -58 -76 -36 Z"/>
-          <path class="zone" data-act="flick" data-label="デコピン" d="M-50 -56 Q0 -70 50 -56 L46 -30 Q0 -40 -46 -30 Z"/>
-          <ellipse class="zone" data-act="poke" data-label="頬をつつく" cx="-48" cy="44" rx="20" ry="17"/>
-          <ellipse class="zone" data-act="poke" data-label="頬をつつく" cx="48" cy="44" rx="20" ry="17"/>
-          <ellipse class="zone" data-act="shoulder" data-label="肩に触れる" cx="-72" cy="114" rx="22" ry="14"/>
-          <ellipse class="zone" data-act="shoulder" data-label="肩に触れる" cx="72" cy="114" rx="22" ry="14"/>
-          <ellipse class="zone" data-act="chest" data-label="胸元に触れる" cx="0" cy="114" rx="20" ry="12"/>
-        </g>
-      </svg>
-      <div class="zoneTip" id="zoneTip"></div>
-      <img class="photo" id="facePhoto" alt="" style="display:none">
-      <div id="photoZones" style="display:none">
-        <div class="pz" data-act="pat" data-label="頭をなでる" style="left:20%;top:0;width:60%;height:22%"></div>
-        <div class="pz" data-act="flick" data-label="デコピン" style="left:33%;top:22%;width:34%;height:12%"></div>
-        <div class="pz" data-act="poke" data-label="頬をつつく" style="left:24%;top:38%;width:18%;height:16%"></div>
-        <div class="pz" data-act="poke" data-label="頬をつつく" style="left:58%;top:38%;width:18%;height:16%"></div>
-        <div class="pz" data-act="shoulder" data-label="肩に触れる" style="left:4%;top:66%;width:24%;height:22%"></div>
-        <div class="pz" data-act="shoulder" data-label="肩に触れる" style="left:72%;top:66%;width:24%;height:22%"></div>
-        <div class="pz warn" data-act="chest" data-label="胸元に触れる" style="left:36%;top:72%;width:28%;height:26%"></div>
-      </div>
+  <div class="gauge"><span>親しさ</span><div class="bar"><i id="affBar"></i></div><span class="dbg" id="affNum">50</span></div>
+  <span class="stat">片付け<b id="turnsLeft">—</b></span>
+  <span class="stat" id="topicsStat" style="display:none">話題<b id="topics"></b></span>
+  <button type="button" id="logBtn" title="これまでの会話">ログ</button>
+  <label><input type="checkbox" id="voice" checked> 声</label>
+  <button type="button" id="helpBtn" title="遊び方">？</button>
+  <label class="dbg"><input type="checkbox" id="debugToggle" checked> デバッグ</label>
+  <span id="sfxState" style="font-size:11px;color:#ffd27a"></span>
+</div>
+<div class="notice" id="notice"></div>
+<div class="clock dbg" id="clock">
+  <div class="row"><span class="lbl">顔</span><span class="val jev" id="cFace">—</span><span class="track" style="color:#9fd3ff"><i id="tFace"></i></span></div>
+  <div class="row"><span class="lbl">一言</span><span class="val jev" id="cSfx">—</span><span class="track" style="color:#9fd3ff"><i id="tSfx"></i></span></div>
+  <div class="row"><span class="lbl">言葉</span><span class="val llm" id="cWords">—</span><span class="track" style="color:#ffb37a"><i id="tWords"></i></span></div>
+  <div class="row"><span class="lbl">声</span><span class="val" id="cVoice">—</span><span class="track" style="color:#ddd"><i id="tVoice"></i></span></div>
+  <div class="mood" id="moodText">&nbsp;</div>
+</div>
+
+<div class="stage" id="stage">
+  <svg viewBox="-110 -125 220 250" id="faceSvg" aria-label="ヒロインの顔">
+    <defs>
+      <radialGradient id="iris" cx="50%" cy="35%" r="65%"><stop offset="0%" stop-color="#bfe4ff"/><stop offset="45%" stop-color="#4f8fe8"/><stop offset="100%" stop-color="#1b3a86"/></radialGradient>
+      <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a3a4a"/><stop offset="100%" stop-color="#1d1d28"/></linearGradient>
+      <linearGradient id="hairDark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2b2b38"/><stop offset="100%" stop-color="#15151e"/></linearGradient>
+      <linearGradient id="skinSh" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffe9de"/><stop offset="100%" stop-color="#ffd9c8"/></linearGradient>
+    </defs>
+    <path d="M-88 -40 Q-108 50 -92 125 L92 125 Q108 50 88 -40 Q76 -112 0 -114 Q-76 -112 -88 -40 Z" fill="url(#hairDark)"/>
+    <path d="M-15 80 L-15 100 L15 100 L15 80 Z" fill="#f6cdb9"/>
+    <path d="M-92 125 Q-70 100 -20 96 L0 112 L20 96 Q70 100 92 125 Z" fill="#9a9aa6"/>
+    <path d="M-20 96 L0 112 L20 96 L14 90 L0 104 L-14 90 Z" fill="#fbfbff"/>
+    <ellipse cx="-70" cy="14" rx="7" ry="11" fill="#ffd9c8"/><ellipse cx="70" cy="14" rx="7" ry="11" fill="#ffd9c8"/>
+    <path d="M-70 -30 Q-74 36 -42 76 Q-16 98 0 98 Q16 98 42 76 Q74 36 70 -30 Q58 -88 0 -90 Q-58 -88 -70 -30 Z" fill="url(#skinSh)"/>
+    <ellipse id="blushL" cx="-46" cy="40" rx="15" ry="7" fill="#ff9fb8" opacity="0"/>
+    <ellipse id="blushR" cx="46" cy="40" rx="15" ry="7" fill="#ff9fb8" opacity="0"/>
+    <g id="blushLines" opacity="0" stroke="#ff7fae" stroke-width="1.6" stroke-linecap="round"><path d="M-54 36 l4 8 M-47 34 l4 8 M-40 36 l4 8 M40 36 l4 8 M47 34 l4 8 M54 36 l4 8"/></g>
+    <path id="browL" d="M-48 -26 Q-34 -33 -16 -27" stroke="#2b2b38" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path id="browR" d="M16 -27 Q34 -33 48 -26" stroke="#2b2b38" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <g id="eyesOpen">
+      <g id="eyeGL" transform="translate(-31 12)"><g class="lid">
+        <path d="M-19 -6 Q-17 -22 0 -22 Q17 -22 19 -6 Q17 14 0 16 Q-17 14 -19 -6 Z" fill="#fff"/>
+        <g id="irisL"><ellipse rx="11.5" ry="15.5" cy="-2" fill="url(#iris)"/><ellipse rx="5.5" ry="8" cy="0" fill="#0e1f4f"/><circle r="4.6" cx="-4.5" cy="-9" fill="#fff"/><circle r="2.2" cx="5" cy="5" fill="#fff" opacity=".95"/></g>
+        <path d="M-20 -8 Q-16 -25 0 -25 Q16 -25 20 -8" stroke="#2a2140" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+      </g></g>
+      <g id="eyeGR" transform="translate(31 12)"><g class="lid">
+        <path d="M-19 -6 Q-17 -22 0 -22 Q17 -22 19 -6 Q17 14 0 16 Q-17 14 -19 -6 Z" fill="#fff"/>
+        <g id="irisR"><ellipse rx="11.5" ry="15.5" cy="-2" fill="url(#iris)"/><ellipse rx="5.5" ry="8" cy="0" fill="#0e1f4f"/><circle r="4.6" cx="-4.5" cy="-9" fill="#fff"/><circle r="2.2" cx="5" cy="5" fill="#fff" opacity=".95"/></g>
+        <path d="M-20 -8 Q-16 -25 0 -25 Q16 -25 20 -8" stroke="#2a2140" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+      </g></g>
+    </g>
+    <g id="eyesClosed" opacity="0">
+      <path d="M-50 10 Q-31 -8 -12 10" stroke="#2a2140" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+      <path d="M12 10 Q31 -8 50 10" stroke="#2a2140" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    </g>
+    <path d="M2 34 Q5 38 1 40" stroke="#e8b3a0" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path id="mouth" d="M-7 55 Q0 59 7 55" stroke="#d9536f" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M-72 -30 Q-96 30 -84 118 Q-64 70 -60 -10 Z" fill="url(#hair)"/>
+    <path d="M72 -30 Q96 30 84 118 Q64 70 60 -10 Z" fill="url(#hair)"/>
+    <path d="M-76 -36 Q-72 -110 0 -112 Q72 -110 76 -36 Q70 -40 62 -22 Q58 -66 44 -30 Q36 -74 22 -36 Q10 -80 -4 -34 Q-18 -78 -32 -34 Q-44 -70 -56 -26 Q-64 -44 -76 -36 Z" fill="url(#hair)"/>
+    <path id="sweat" d="M70 -40 Q80 -24 70 -14 Q60 -24 70 -40 Z" fill="#8fd0ff" opacity="0"/>
+    <path id="anger" d="M-80 -60 l12 0 M-74 -66 l0 12 M-66 -60 l12 0 M-60 -66 l0 12" stroke="#ff6b6b" stroke-width="3.5" stroke-linecap="round" opacity="0"/>
+    <g id="sparkle" opacity="0" fill="#fff2a8"><path d="M78 -46 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3 Z"/><path d="M-88 4 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z"/></g>
+    <path id="dots" d="M60 -52 a3 3 0 1 0 .1 0 M70 -58 a3 3 0 1 0 .1 0 M80 -64 a3 3 0 1 0 .1 0" fill="#b7abcc" opacity="0"/>
+    <g id="zones" style="cursor:pointer">
+      <path class="zone" data-act="pat" data-label="頭をなでる" d="M-76 -36 Q-72 -110 0 -112 Q72 -110 76 -36 Q40 -58 0 -56 Q-40 -58 -76 -36 Z"/>
+      <path class="zone" data-act="flick" data-label="デコピン" d="M-50 -56 Q0 -70 50 -56 L46 -30 Q0 -40 -46 -30 Z"/>
+      <ellipse class="zone" data-act="poke" data-label="頬をつつく" cx="-48" cy="44" rx="20" ry="17"/>
+      <ellipse class="zone" data-act="poke" data-label="頬をつつく" cx="48" cy="44" rx="20" ry="17"/>
+      <ellipse class="zone" data-act="shoulder" data-label="肩に触れる" cx="-72" cy="114" rx="22" ry="14"/>
+      <ellipse class="zone" data-act="shoulder" data-label="肩に触れる" cx="72" cy="114" rx="22" ry="14"/>
+      <ellipse class="zone" data-act="chest" data-label="襟元に触れる" cx="0" cy="114" rx="20" ry="12"/>
+    </g>
+  </svg>
+  <img class="photo" id="facePhoto" alt="" style="display:none">
+  <div id="photoZones" style="display:none">
+    <div class="pz" data-act="pat" data-label="頭をなでる" style="left:20%;top:0;width:60%;height:22%"></div>
+    <div class="pz" data-act="flick" data-label="デコピン" style="left:33%;top:22%;width:34%;height:12%"></div>
+    <div class="pz" data-act="poke" data-label="頬をつつく" style="left:24%;top:38%;width:18%;height:16%"></div>
+    <div class="pz" data-act="poke" data-label="頬をつつく" style="left:58%;top:38%;width:18%;height:16%"></div>
+    <div class="pz" data-act="shoulder" data-label="肩に触れる" style="left:4%;top:66%;width:24%;height:22%"></div>
+    <div class="pz" data-act="shoulder" data-label="肩に触れる" style="left:72%;top:66%;width:24%;height:22%"></div>
+    <div class="pz warn" data-act="chest" data-label="襟元に触れる" style="left:36%;top:72%;width:28%;height:26%"></div>
+  </div>
+  <div class="zoneTip" id="zoneTip"></div>
+</div>
+<span id="name" hidden>—</span>
+
+<div class="msgwin" id="win">
+  <div class="prev" id="winPrev"></div>
+  <div class="plate" id="winName"></div>
+  <div class="text" id="winText"></div>
+  <form id="form" class="dock">
+    <div class="chips" id="chips"></div>
+    <div class="row2">
+      <textarea id="input" placeholder="台詞を入力（Enter で送る・Shift+Enter で改行）。絵に触れることもできる"></textarea>
+      <button class="send" id="send" type="submit">言う</button>
     </div>
-    <div class="name" id="name">—</div>
-    <div class="mood dbg" id="moodText">&nbsp;</div>
-    <div class="bar"><i id="affBar"></i></div>
-    <div class="aff"><span>親しさ</span><span class="dbg" id="affNum">50</span></div>
-    <div class="left"><span>片付け</span><span id="turnsLeft">—</span></div>
-    <div class="left"><span>開いた話題</span><span id="topics"></span></div>
-    <div class="clock dbg" id="clock">
-      <div class="row"><span class="lbl">顔</span><span class="val jev" id="cFace">—</span><span class="track" style="color:var(--jev)"><i id="tFace"></i></span></div>
-      <div class="row"><span class="lbl">一言</span><span class="val jev" id="cSfx">—</span><span class="track" style="color:var(--jev)"><i id="tSfx"></i></span></div>
-      <div class="row"><span class="lbl">言葉</span><span class="val llm" id="cWords">—</span><span class="track" style="color:var(--llm)"><i id="tWords"></i></span></div>
-      <div class="row"><span class="lbl">声</span><span class="val" id="cVoice">—</span><span class="track" style="color:var(--sub)"><i id="tVoice"></i></span></div>
-    </div>
-  </section>
-  <section class="card">
-    <div class="log" id="log"></div>
-  </section>
-</main>
+  </form>
+</div>
 <div class="foot dbg" id="foot"></div>
+
+<div class="modal" id="backlog"><div class="box">
+  <h3>これまで</h3>
+  <div class="log" id="log"></div>
+  <button type="button" class="close" id="backlogClose">閉じる</button>
+</div></div>
 <div class="modal" id="help"><div class="box">
   <h3>遊び方</h3>
   <dl id="helpBody"></dl>
@@ -247,30 +273,44 @@
   <label><input type="checkbox" id="debugToggle2"> デバッグ表示（時間・数値・判定名・反射／LLM の切替）</label>
   <button type="button" class="close" id="helpClose">閉じる</button>
 </div></div>
-<div class="title" id="title"><div class="box">
+
+<div class="title" id="title">
+  <svg class="logo" viewBox="0 0 640 200" role="img" aria-label="#Jevカノ">
+    <defs>
+      <linearGradient id="gJev" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe6ff"/><stop offset=".5" stop-color="#63a9ea"/><stop offset="1" stop-color="#2d6fb3"/></linearGradient>
+      <linearGradient id="gKano" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd39a"/><stop offset=".5" stop-color="#ff8c5a"/><stop offset="1" stop-color="#e64f74"/></linearGradient>
+      <g id="logoText" font-family="'Zen Maru Gothic','Hiragino Maru Gothic ProN','Yu Gothic UI',sans-serif" font-weight="900" font-size="128" text-anchor="middle" transform="rotate(-2.5 320 120)">
+        <text x="320" y="150" stroke="#2a2d3f" stroke-width="30" stroke-linejoin="round" fill="none">#Jevカノ</text>
+        <text x="320" y="150" stroke="#fff" stroke-width="16" stroke-linejoin="round" fill="none">#Jevカノ</text>
+        <text x="320" y="150"><tspan fill="url(#gJev)">#Jev</tspan><tspan fill="url(#gKano)">カノ</tspan></text>
+        <g fill="#fff" stroke="#2a2d3f" stroke-width="3" stroke-linejoin="round">
+          <path d="M556 42 l6 16 16 6 -16 6 -6 16 -6 -16 -16 -6 16 -6 Z"/>
+          <path d="M96 150 l4 11 11 4 -11 4 -4 11 -4 -11 -11 -4 11 -4 Z"/>
+        </g>
+        <path d="M596 108 c-6 -10 -20 -4 -14 8 c3 6 14 14 14 14 s11 -8 14 -14 c6 -12 -8 -18 -14 -8 Z" fill="#ff6f91" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
+      </g>
+    </defs>
+    <use href="#logoText"/>
+  </svg>
   <h2 id="titleName">#Jevカノ</h2>
   <div class="sub" id="titleSub">顔が先に動いて、言葉はあとから来る</div>
-  <p class="intro" id="titleIntro"></p>
-  <p class="intro" id="titleGoal" style="border-style:solid;color:var(--accent2)"></p>
-  <label class="f" for="playerName">あなたの名前</label>
-  <input id="playerName" maxlength="20" placeholder="例: 拓海" autocomplete="off">
-  <label class="f" for="heroineName">彼女の名前</label>
-  <select id="heroineName"></select>
-  <label class="f" for="episode">はじまり</label>
-  <select id="episode"></select>
-  <button class="start" id="startBtn">はじめる</button>
-  <div class="note">人物も場面も架空です。台詞は判定のため TypeSafe AI（Jev）と Anthropic（Claude）へ、声を出すときは Google（Gemini TTS）へ送られます。</div>
-</div></div>
-<div class="dock"><div class="inner">
-  <form id="form">
-    <div class="chips" id="chips"></div>
-    <div class="row2">
-      <textarea id="input" placeholder="台詞を入力（Enter で送る・Shift+Enter で改行）"></textarea>
-      <button class="send" id="send" type="submit">言う</button>
+  <div class="box">
+    <p class="intro" id="titleIntro"></p>
+    <p class="goal" id="titleGoal"></p>
+    <div class="cols">
+      <div><label class="f" for="playerName">あなたの名前</label><input id="playerName" maxlength="20" placeholder="例: 拓海" autocomplete="off"></div>
+      <div><label class="f" for="heroineName">彼女の名前</label><select id="heroineName"></select></div>
     </div>
-  </form>
-</div></div>
-<div class="ending" id="ending"><div class="box"><h2 id="endTitle"></h2><p id="endText"></p><p id="endNote" style="color:var(--accent2);font-size:13px"></p><p id="endStats" class="dbg" style="color:var(--sub);font-size:13px"></p><button id="again">もう一度</button></div></div>
+    <label class="f" for="episode">はじまり</label>
+    <select id="episode"></select>
+    <button class="start" id="startBtn">はじめる</button>
+    <div class="note">人物も場面も架空です。台詞は判定のため TypeSafe AI（Jev）と Anthropic（Claude）へ、声を出すときは Google（Gemini TTS）へ送られます。</div>
+  </div>
+  <div class="credit">反射 Jev ／ 言葉 Claude ／ 声・絵 Gemini</div>
+</div>
+
+<div class="ending" id="ending"><div class="box"><h2 id="endTitle"></h2><p id="endText"></p><p id="endNote" style="color:var(--accent2);font-size:13px"></p><p id="endStats" class="dbg" style="color:var(--sub);font-size:13px"></p><button id="again">タイトルへ</button></div></div>
+
 <script>
 const MOOD_JA = { joy:'嬉しい', shy:'照れる', puzzled:'困る', upset:'不機嫌', calm:'平静' };
 const TOPIC_JA = { book:'本', cook:'料理', stage:'明日のステージ', circle:'サークル' };
@@ -290,11 +330,36 @@ function memMark(episodeId, kind) { const m = memGet(); m.seen = m.seen || {}; m
 function episodeDone(episodeId) { const s = (memGet().seen || {})[episodeId]; return !!s && Object.keys(s).length > 0; }
 let cfg, S;
 
+// ---- 立ち絵: 背景が一様な緑の絵を、画面側で透明にして背景の上に立たせる ----
+const CUT = {}; // 'shy_strong' → data URL（透明 PNG）
+function cutout(url) {
+  return new Promise((res) => {
+    const im = new Image(); im.onload = () => {
+      try {
+        const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+        const d = x.getImageData(0, 0, c.width, c.height); const p = d.data;
+        for (let i = 0; i < p.length; i += 4) {
+          const r = p[i], g = p[i + 1], b = p[i + 2]; const m = Math.max(r, b); const gn = g - m; // 緑の勝ち具合
+          if (gn > 12) { const a = gn < 30 ? 1 : gn > 96 ? 0 : 1 - (gn - 30) / 66; p[i + 3] = Math.round(p[i + 3] * a); p[i + 1] = m; }
+        }
+        x.putImageData(d, 0, 0); res(c.toDataURL('image/png'));
+      } catch { res(null); }
+    }; im.onerror = () => res(null); im.src = url;
+  });
+}
+async function prepareCutouts() {
+  const g = cfg.faces && cfg.faces.green; if (!g) return;
+  await Promise.all(Object.entries(g).map(async ([k, url]) => { const d = await cutout(url); if (d) CUT[k] = d; }));
+  if (S) setFace(S.face || 'calm', null, { quiet: true, strong: S.faceStrong });
+}
 const TIER_JA = ['弱', '中', '強'];
 function setFace(mood, label, { quiet = false, strong = false } = {}) {
   const f = FACES[mood] || FACES.calm;
-  const img = cfg && cfg.faces && ((strong && cfg.faces[mood + '_strong']) || cfg.faces[mood]);
-  if (img) { $('facePhoto').src = img; $('facePhoto').style.display = ''; $('photoZones').style.display = ''; $('faceSvg').style.display = 'none'; }
+  if (S) { S.face = mood; S.faceStrong = strong; }
+  const key = (strong && cfg && cfg.faces && (cfg.faces[mood + '_strong'] || (cfg.faces.green || {})[mood + '_strong'])) ? mood + '_strong' : mood;
+  const cut = CUT[key] || (strong ? CUT[mood] : null);
+  const img = cut || (cfg && cfg.faces && ((strong && cfg.faces[mood + '_strong']) || cfg.faces[mood]));
+  if (img) { $('facePhoto').src = img; $('facePhoto').classList.toggle('framed', !cut); $('facePhoto').style.display = ''; $('photoZones').style.display = ''; $('faceSvg').style.display = 'none'; }
   else {
     $('facePhoto').style.display = 'none'; $('photoZones').style.display = 'none'; $('faceSvg').style.display = '';
     $('eyesOpen').setAttribute('opacity', f.closed ? 0 : 1); $('eyesClosed').setAttribute('opacity', f.closed ? 1 : 0);
@@ -309,13 +374,30 @@ function setFace(mood, label, { quiet = false, strong = false } = {}) {
 }
 function setAff(v) { S.affection = Math.max(0, Math.min(100, v)); $('affBar').style.width = S.affection + '%'; $('affNum').textContent = S.affection; }
 function add(cls, text) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.textContent = text; $('log').appendChild(d); scrollDown(); return d; }
-function meta(html) { const d = document.createElement('div'); d.className = 'meta dbg'; d.innerHTML = html; $('log').appendChild(d); scrollDown(); return d; }
-function scrollDown() { window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }); }
+function meta(html) { const d = document.createElement('div'); d.className = 'meta dbg'; d.innerHTML = html; $('log').appendChild(d); return d; }
+function scrollDown() { const b = $('backlog'); if (b.style.display === 'flex') b.querySelector('.box').scrollTop = 1e9; }
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const sec = (ms) => (ms / 1000).toFixed(2) + ' s';
 const notice = (t) => { $('notice').textContent = t || ''; };
 const plain = (t) => String(t || '').replace(/<[a-z -]+>/g, '').replace(/\s{2,}/g, ' ').trim(); // 声用のタグを外す
 const mode = () => document.querySelector('input[name=mode]:checked').value;
+
+// ---- メッセージ窓: 記録（ログ）の最後の吹き出しを映す ----
+function renderWin() {
+  const items = [...$('log').querySelectorAll('.msg')]; const last = items[items.length - 1]; if (!last) return;
+  const txt = $('winText'), plate = $('winName'), prev = $('winPrev');
+  txt.classList.toggle('pending', last.classList.contains('pending'));
+  txt.classList.toggle('narr', last.classList.contains('intro'));
+  if (last.classList.contains('intro')) { plate.textContent = ''; plate.className = 'plate'; prev.textContent = ''; txt.innerHTML = esc(last.textContent) + (S && S.waitOpen ? '<span class="next">▼ クリックで続ける</span>' : ''); return; }
+  if (last.classList.contains('user')) { plate.textContent = S ? S.playerName : ''; plate.className = 'plate me'; prev.textContent = ''; txt.textContent = last.textContent; return; }
+  plate.textContent = S ? S.heroineName : ''; plate.className = 'plate';
+  const before = items[items.length - 2];
+  prev.textContent = before && before.classList.contains('user') ? (S ? S.playerName : 'あなた') + '「' + before.textContent + '」' : '';
+  txt.innerHTML = last.innerHTML;
+}
+new MutationObserver(renderWin).observe($('log'), { childList: true, subtree: true, characterData: true });
+function fitWin() { document.documentElement.style.setProperty('--win', ($('win').offsetHeight + 10) + 'px'); }
+new ResizeObserver(fitWin).observe($('win'));
 
 async function post(path, body) {
   const r = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
@@ -403,7 +485,7 @@ function speakBrowser(text, mood) {
 const sfxBuf = {}; // 'action/shy' → AudioBuffer
 let sfxTotal = 0;
 async function prefetchSfx() {
-  if (!cfg.has.tts) return;
+  if (!cfg.has.tts && !cfg.sfxReady) return;
   const st = await fetch('/api/sfx-status?heroine=' + encodeURIComponent(S.heroineName || '')).then((r) => r.json()).catch(() => ({ total: 0, ready: [] }));
   sfxTotal = st.total;
   for (const key of st.ready) {
@@ -418,7 +500,7 @@ async function prefetchSfx() {
   }
   const have = Object.keys(sfxBuf).length;
   $('sfxState').textContent = have >= sfxTotal && sfxTotal > 0 ? '' : '一言の音声 ' + have + '/' + sfxTotal + ' 準備中';
-  if (have < sfxTotal) setTimeout(prefetchSfx, 6000);
+  if (have < sfxTotal && cfg.has.tts) setTimeout(prefetchSfx, 6000);
 }
 async function interject(kind, mood, tier, onFirst) {
   const key = kind + '/' + mood + '/' + tier;
@@ -465,25 +547,41 @@ async function speakFixed(text, mood) {
     if (useBrowserVoice) speakBrowser(text, mood);
   } catch (e) { if (useBrowserVoice) { try { speakBrowser(text, mood); } catch {} } }
 }
+function setBackground(ep) {
+  const bgs = (cfg && cfg.backgrounds) || {}; const url = (ep && bgs[ep.id]) || bgs.clubroom || Object.values(bgs)[0];
+  $('bg').style.backgroundImage = url ? 'url(' + url + ')' : '';
+  document.body.className = document.body.className.replace(/\bep-\S+/g, '').trim();
+  if (ep && !bgs[ep.id]) document.body.classList.add('ep-' + ep.id);
+}
 function reset() {
   S = { turn: 0, history: [], affection: cfg.scenario.startAffection, turns: [], lastSay: '', playerName: (S && S.playerName) || 'あなた', heroineName: (S && S.heroineName) || cfg.scenario.persona['名前'], episode: (S && S.episode) || null };
   $('name').textContent = S.heroineName;
   $('log').innerHTML = '';
   setAff(S.affection);
-  setFace('calm', '');
-  const ep = S.episode || (cfg.scenario.episodes || [])[0] || { opening: cfg.scenario.opening, suggestions: cfg.scenario.suggestions };
-  add('her', ep.opening);
-  S.history.push({ role: 'assistant', text: ep.opening });
-  setFace('shy', null, { quiet: true });
-  speakFixed(ep.opening, 'shy');
+  setFace('calm', '', { quiet: true });
+  const ep = S.episode || (cfg.scenario.episodes || [])[0] || { opening: cfg.scenario.opening, suggestions: cfg.scenario.suggestions, narration: cfg.scenario.narration };
+  setBackground(ep);
   S.strikes = 0; S.chest = 0; S.over = false; S.topics = []; S.bandsDone = []; S.probe = false; S.lastInitiativeTurn = -9;
-  $('topics').textContent = '';
+  $('topics').textContent = ''; $('topicsStat').style.display = 'none';
   turnsLeft();
   chips();
   for (const k of KEYS) { $('c' + k).textContent = '—'; $('c' + k).classList.remove('run'); $('t' + k).style.width = '0%'; }
   $('ending').style.display = 'none';
+  // ト書き（状況）を先に見せ、クリックで彼女の第一声へ
+  const narr = ep.narration || ep.scene || cfg.scenario.scene;
+  if (narr) { S.waitOpen = true; add('intro', narr); }
+  else openingLine();
   $('input').focus();
 }
+function openingLine() {
+  if (!S.waitOpen) return; S.waitOpen = false;
+  const ep = S.episode || (cfg.scenario.episodes || [])[0] || { opening: cfg.scenario.opening };
+  add('her', ep.opening);
+  S.history.push({ role: 'assistant', text: ep.opening });
+  setFace('shy', null, { quiet: false });
+  speakFixed(ep.opening, 'shy');
+}
+$('winText').addEventListener('click', () => { if (S && S.waitOpen) openingLine(); });
 function turnsLeft() { const n = cfg.scenario.maxTurns - S.turn; $('turnsLeft').textContent = n > 0 ? '残り ' + n : '終わり'; }
 function chips() {
   const c = $('chips'); c.innerHTML = '';
@@ -500,6 +598,7 @@ for (const z of document.querySelectorAll('.zone, .pz')) {
 
 async function turn(line, action) {
   if ((!line.trim() && !action) || S.busy || S.over) return;
+  if (S.waitOpen) openingLine();
   S.busy = true; $('send').disabled = true; clearTimeout(peekTimer); peekSeq++;
   const m = mode();
   const shown = action ? '（' + action.label + '）' : line;
@@ -519,7 +618,7 @@ async function turn(line, action) {
       j = await post('/api/reflex', body); rec.jev = j; rec.tFace = Math.round(performance.now() - t0); clockMark('Face', rec.tFace);
       setFace(j.mood, '本音: <b>' + MOOD_JA[j.mood] + '</b> ' + TIER_JA[j.tier ?? 0] + '（反射 ' + sec(rec.tFace) + '）', { strong: (j.tier ?? 0) === 2 });
       setAff(S.affection + j.deltaRound * (action ? (cfg.scenario.actionStep || cfg.scenario.affectionStep || 1) : (cfg.scenario.affectionStep || 1)));
-      if (j.topic && !S.topics.includes(j.topic)) { S.topics.push(j.topic); rec.topicOpened = j.topic; setAff(S.affection + (cfg.scenario.topicBonus || 0)); $('topics').textContent = S.topics.map((t) => TOPIC_JA[t] || t).join('・'); toast('話題が開いた: ' + (TOPIC_JA[j.topic] || j.topic)); }
+      if (j.topic && !S.topics.includes(j.topic)) { S.topics.push(j.topic); rec.topicOpened = j.topic; setAff(S.affection + (cfg.scenario.topicBonus || 0)); $('topics').textContent = S.topics.map((t) => TOPIC_JA[t] || t).join('・'); $('topicsStat').style.display = ''; toast('話題が開いた: ' + (TOPIC_JA[j.topic] || j.topic)); }
       const kind = action ? 'action' : 'line';
       let tier = j.tier ?? 0;
       const bank = cfg.interjections[kind][j.mood] || [];
@@ -549,7 +648,6 @@ async function turn(line, action) {
   pending.className = 'msg her';
   if (rec.say) { const sp = document.createElement('span'); sp.className = 'line'; sp.textContent = lineOut; pending.appendChild(sp); }
   else pending.textContent = lineOut;
-  scrollDown();
   S.history.push({ role: 'assistant', text: (rec.say ? rec.say + '\n' : '') + lineOut });
   if (!j && w) { rec.tFace = rec.tWords; clockMark('Face', rec.tFace); setFace(w.mood, '顔: <b class="llm">' + MOOD_JA[w.mood] + '</b>（LLM と一緒に ' + sec(rec.tFace) + '）'); setAff(S.affection + w.delta * (cfg.scenario.affectionStep || 1)); }
 
@@ -613,30 +711,29 @@ function ending(force) {
   const t = S.turns, avg = (k) => { const xs = t.map((r) => r[k]).filter((x) => x != null); return xs.length ? sec(xs.reduce((a, b) => a + b, 0) / xs.length) : '—'; };
   const eps = (cfg.scenario.episodes || []); const mem = memGet(); const seenN = eps.filter((e) => episodeDone(e.id)).length; const openN = eps.filter((e) => !e.locked || mem.perfect).length;
   $('endNote').textContent = '開いた話題: ' + (S.topics.length ? S.topics.map((t) => TOPIC_JA[t] || t).join('・') : 'なし') + ' ／ 見たはじまり ' + seenN + '/' + openN + (kind === 'perfect' && eps.some((e) => e.locked) ? ' ／ 新しいはじまりが開いた' : seenN < openN ? ' ／ まだ見ていないはじまりがある' : '');
-  $('endStats').textContent = (document.body.classList.contains('debug') ? '' : '') + '顔の平均 ' + avg('tFace') + (t.some((r) => r.tSfx != null) ? ' ・ 一言の平均 ' + avg('tSfx') : '') + ' ・ 言葉の平均 ' + avg('tWords') + (t.some((r) => r.tVoice != null) ? ' ・ 声の平均 ' + avg('tVoice') : '');
+  $('endStats').textContent = '顔の平均 ' + avg('tFace') + (t.some((r) => r.tSfx != null) ? ' ・ 一言の平均 ' + avg('tSfx') : '') + ' ・ 言葉の平均 ' + avg('tWords') + (t.some((r) => r.tVoice != null) ? ' ・ 声の平均 ' + avg('tVoice') : '');
   $('ending').style.display = 'flex';
 }
 
 $('form').addEventListener('submit', (ev) => { ev.preventDefault(); turn($('input').value); });
-$('input').addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); turn($('input').value); } });
+$('input').addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); if (S && S.waitOpen && !$('input').value.trim()) { openingLine(); return; } turn($('input').value); } });
 $('input').addEventListener('input', schedulePeek);
-$('again').onclick = () => { $('ending').style.display = 'none'; $('title').style.display = 'flex'; if (typeof window.__renderEpisodes === 'function') window.__renderEpisodes(); };
-
-function hintText() {
-  return mode() === 'reflex'
-    ? '反射モード: 送る（触れる）と約 0.2〜0.5 秒で本音が顔と一言に出ます。一言と表情の強さは Jev の確率で 3 段階（弱・中・強）。言葉は数秒後、声は本音の色で読みます。打っている途中も顔だけ黙って動きます。'
-    : 'LLM だけモード: 言葉ができるまで顔も動きません。数秒の「間」を体で比べてください。';
-}
+$('again').onclick = () => { $('ending').style.display = 'none'; $('title').style.display = 'flex'; document.body.classList.add('on-title'); if (typeof window.__renderEpisodes === 'function') window.__renderEpisodes(); };
+$('logBtn').onclick = () => { $('backlog').style.display = 'flex'; scrollDown(); };
+$('backlogClose').onclick = () => { $('backlog').style.display = 'none'; };
+for (const id of ['backlog', 'help']) $(id).addEventListener('click', (ev) => { if (ev.target === $(id)) $(id).style.display = 'none'; });
 
 fetch('/api/config').then((r) => r.json()).then((c) => {
   cfg = c;
   $('name').textContent = c.scenario.persona['名前'];
   const voiceLabel = c.has.tts ? c.ttsModel : ('speechSynthesis' in window ? 'ブラウザの合成音声（仮）' : 'なし');
   $('models').textContent = '反射 ' + (c.has.jev ? 'jev-latest' : 'なし') + ' ／ 言葉 ' + (c.has.llm ? c.llmModel : 'なし') + ' ／ 声 ' + voiceLabel;
-  if (!c.has.tts && !('speechSynthesis' in window)) { $('voice').checked = false; $('voice').disabled = true; }
+  if (!c.has.tts && !c.sfxReady && !('speechSynthesis' in window)) { $('voice').checked = false; $('voice').disabled = true; }
   if (!c.has.jev) { document.querySelector('input[value=llm]').checked = true; document.querySelector('input[value=reflex]').disabled = true; }
-  $('foot').innerHTML = '人物も場面も架空です。台詞は判定のため TypeSafe AI（Jev）と Anthropic（Claude）へ、声を Gemini で出すときは Google へ送られます。打っている途中の文も Jev に送られます。各ターンの計測は <code>_out/turns.jsonl</code> に残ります。' + (c.faces && Object.keys(c.faces).length ? ' 顔は <code>public/faces/</code> の画像。' : ' 顔の画像を <code>public/faces/{joy,shy,puzzled,upset,calm}.png</code> に置くと差し替わります。');
+  $('foot').innerHTML = '台詞は判定のため TypeSafe AI（Jev）と Anthropic（Claude）へ、声を Gemini で出すときは Google へ送られます。打っている途中の文も Jev に送られます。各ターンの計測は <code>_out/turns.jsonl</code> に残ります。';
   if ('speechSynthesis' in window) speechSynthesis.getVoices();
+  setBackground(null);
+  prepareCutouts();
   // デバッグ表示（?debug=1 か チェック）
   const dbg = new URLSearchParams(location.search).get('debug') === '1';
   const setDbg = (on) => { document.body.classList.toggle('debug', on); $('debugToggle').checked = on; $('debugToggle2').checked = on; };
@@ -651,7 +748,7 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
   $('browserVoiceToggle').addEventListener('change', () => { useBrowserVoice = $('browserVoiceToggle').checked; try { localStorage.setItem('jevkano_browser_voice', useBrowserVoice ? '1' : '0'); } catch {} });
   $('helpBtn').onclick = () => { $('help').style.display = 'flex'; };
   $('helpClose').onclick = () => { $('help').style.display = 'none'; };
-  // 導入画面
+  // 開始画面
   if (c.scenario.title) { $('appTitle').textContent = c.scenario.title; $('titleName').textContent = c.scenario.title; document.title = c.scenario.title; }
   if (c.scenario.subtitle) $('titleSub').textContent = c.scenario.subtitle;
   const sel = $('heroineName'); if ((c.scenario.names || []).length <= 1) { sel.style.display = 'none'; document.querySelector('label[for=heroineName]').textContent = '彼女: ' + (c.scenario.names || [c.scenario.persona['名前']])[0]; }
@@ -674,12 +771,12 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
     try { localStorage.setItem('reflex_galge_player', pn); } catch {}
     for (const k of Object.keys(sfxBuf)) delete sfxBuf[k];
     S = { playerName: pn, heroineName: sel.value, episode: pickEpisode() };
-    $('title').style.display = 'none';
+    $('title').style.display = 'none'; document.body.classList.remove('on-title');
     reset();
     prefetchSfx();
   };
   $('playerName').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); $('startBtn').click(); } });
-
+  fitWin();
 });
 </script>
 </body>
