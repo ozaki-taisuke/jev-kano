@@ -77,14 +77,16 @@ async function relayFetch(pathAndQuery, init = {}) {
 // 顔の画像（任意）: public/faces/{joy,shy,puzzled,upset,calm}.(png|webp|jpg) があれば SVG の代わりに使う
 const FACES_DIR = path.join(here, 'public', 'faces');
 const MIME = { '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg' };
+const FACE_NAME = /^(joy|shy|puzzled|upset|calm)(_mid|_strong)?(_[a-z][a-z0-9]*)?\.(png|webp|jpe?g)$/i;
 function faceImages() {
   const out = {};
   let files = [];
   try { files = fs.readdirSync(FACES_DIR); } catch { return out; }
-  for (const f of files) { const m = f.match(/^(joy|shy|puzzled|upset|calm)(_strong)?\.(png|webp|jpe?g)$/i); if (m) { const k = m[1].toLowerCase() + (m[2] || ''); if (!out[k]) out[k] = '/faces/' + f; } }
+  // 名前: 本音 + 段階（_mid・_strong。無ければ弱・中は素、強は _strong）+ はじまり（_scores など。その回だけ差し替わる）
+  for (const f of files) { const m = f.match(FACE_NAME); if (m) { const k = m[1].toLowerCase() + (m[2] || '') + (m[3] || ''); if (!out[k]) out[k] = '/faces/' + f; } }
   // 切り抜き用（背景が一様な緑）。public/faces/green/ にあれば画面側で緑を透明にして背景の上に立たせる
   let greens = []; try { greens = fs.readdirSync(path.join(FACES_DIR, 'green')); } catch {}
-  for (const f of greens) { const m = f.match(/^(joy|shy|puzzled|upset|calm)(_strong)?\.(png|webp|jpe?g)$/i); if (m) { out.green = out.green || {}; out.green[m[1].toLowerCase() + (m[2] || '')] = '/faces/green/' + f; } }
+  for (const f of greens) { const m = f.match(FACE_NAME); if (m) { out.green = out.green || {}; out.green[m[1].toLowerCase() + (m[2] || '') + (m[3] || '')] = '/faces/green/' + f; } }
   return out;
 }
 
@@ -201,7 +203,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && url.pathname.startsWith('/faces/')) {
       const name = path.basename(url.pathname); const ext = path.extname(name).toLowerCase(); const sub = url.pathname.startsWith('/faces/green/') ? 'green' : '';
-      if (!MIME[ext] || !/^(joy|shy|puzzled|upset|calm)(_strong)?\./i.test(name)) return send(res, 404, { error: 'not found' });
+      if (!MIME[ext] || !FACE_NAME.test(name)) return send(res, 404, { error: 'not found' });
       try { const buf = fs.readFileSync(path.join(FACES_DIR, sub, name)); res.writeHead(200, { 'Content-Type': MIME[ext], 'Cache-Control': 'public, max-age=600' }); return res.end(buf); }
       catch { return send(res, 404, { error: 'not found' }); }
     }

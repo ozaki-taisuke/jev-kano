@@ -370,15 +370,22 @@ function cutout(url) {
 async function prepareCutouts() {
   const g = cfg.faces && cfg.faces.green; if (!g) return;
   await Promise.all(Object.entries(g).map(async ([k, url]) => { const d = await cutout(url); if (d) CUT[k] = d; }));
-  if (S) setFace(S.face || 'calm', null, { quiet: true, strong: S.faceStrong });
+  if (S) setFace(S.face || 'calm', null, { quiet: true, tier: S.faceTier });
 }
 const TIER_JA = ['弱', '中', '強'];
-function setFace(mood, label, { quiet = false, strong = false } = {}) {
-  const f = FACES[mood] || FACES.calm;
-  if (S) { S.face = mood; S.faceStrong = strong; }
-  const key = (strong && cfg && cfg.faces && (cfg.faces[mood + '_strong'] || (cfg.faces.green || {})[mood + '_strong'])) ? mood + '_strong' : mood;
-  const cut = CUT[key] || (strong ? CUT[mood] : null);
-  const img = cut || (cfg && cfg.faces && ((strong && cfg.faces[mood + '_strong']) || cfg.faces[mood]));
+/** 絵の名前を選ぶ: 本音 + 段階（強→ _strong、中→ _mid。無ければ一つ下）+ はじまり（_scores など、その回の絵があれば） */
+function faceKey(mood, tier) {
+  const has = (k) => !!(cfg && cfg.faces && (cfg.faces[k] || (cfg.faces.green || {})[k]));
+  const ep = S && S.episode && S.episode.id; const sufs = tier >= 2 ? ['_strong', '_mid', ''] : tier === 1 ? ['_mid', ''] : [''];
+  for (const suf of sufs) { if (ep && has(mood + suf + '_' + ep)) return mood + suf + '_' + ep; if (has(mood + suf)) return mood + suf; }
+  return mood;
+}
+function setFace(mood, label, { quiet = false, strong = false, tier } = {}) {
+  const f = FACES[mood] || FACES.calm; tier = tier ?? (strong ? 2 : 0);
+  if (S) { S.face = mood; S.faceTier = tier; }
+  const key = faceKey(mood, tier);
+  const cut = CUT[key] || CUT[mood] || null;
+  const img = cut || (cfg && cfg.faces && (cfg.faces[key] || cfg.faces[mood]));
   if (img) { $('facePhoto').src = img; $('facePhoto').classList.toggle('framed', !cut); $('facePhoto').style.display = ''; $('photoZones').style.display = ''; $('faceSvg').style.display = 'none'; }
   else {
     $('facePhoto').style.display = 'none'; $('photoZones').style.display = 'none'; $('faceSvg').style.display = '';
@@ -669,7 +676,7 @@ async function turn(line, action) {
     // 1. 反射: 本音が決まる → 顔・好感度・一言。ここまで LLM は待たない
     try {
       j = await post('/api/reflex', body); rec.jev = j; rec.tFace = Math.round(performance.now() - t0); clockMark('Face', rec.tFace);
-      setFace(j.mood, '本音: <b>' + MOOD_JA[j.mood] + '</b> ' + TIER_JA[j.tier ?? 0] + '（反射 ' + sec(rec.tFace) + '）', { strong: (j.tier ?? 0) === 2 });
+      setFace(j.mood, '本音: <b>' + MOOD_JA[j.mood] + '</b> ' + TIER_JA[j.tier ?? 0] + '（反射 ' + sec(rec.tFace) + '）', { tier: j.tier ?? 0 });
       setAff(S.affection + j.deltaRound * (action ? (cfg.scenario.actionStep || cfg.scenario.affectionStep || 1) : (cfg.scenario.affectionStep || 1)));
       if (j.topic && !S.topics.includes(j.topic)) { S.topics.push(j.topic); rec.topicOpened = j.topic; setAff(S.affection + (cfg.scenario.topicBonus || 0)); $('topics').textContent = S.topics.map((t) => TOPIC_JA[t] || t).join('・'); $('topicsStat').style.display = ''; toast('話題が開いた: ' + (TOPIC_JA[j.topic] || j.topic)); }
       const kind = action ? 'action' : 'line';

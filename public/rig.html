@@ -139,7 +139,7 @@ function cutout(url) {
   });
 }
 const CUT = {}; // key → canvas
-const keyOf = (mood, t) => (t === 2 && CUT[mood + '_strong']) ? mood + '_strong' : mood;
+const keyOf = (mood, t) => (t === 2 && CUT[mood + '_strong']) ? mood + '_strong' : (t >= 1 && CUT[mood + '_mid']) ? mood + '_mid' : mood;
 
 // ---- 左: 本番と同じ差し替え ----
 function leftSet(key) {

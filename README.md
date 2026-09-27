@@ -136,13 +136,14 @@ node design_voice.mjs --preset            # 声質の候補を作って試聴 WA
 node design_voice.mjs --audition voice_xxx "台詞"
 node make_faces.mjs --base                # 基準画 1 枚 → 表情 4 枚（同じ人物のまま編集）
 node make_faces.mjs --from making/faces/xxx.jpg
+node make_faces.mjs --variant shy_strong --green   # 名前つきの 1 枚（照れ隠しの袖・怒りの段階など。make_faces.mjs の VARIANTS）と緑背景版
 node make_cutout.mjs --all                # 顔の絵の背景を緑に（立ち絵用。public/faces/green/）
 node make_bg.mjs                          # 背景の絵（部室・夕方）→ public/bg/clubroom.jpg。--id wings でステージ袖
 ```
 
 - かわいさの大半は声質と絵で決まる。プロンプトで直すのは調子だけ。
 - 未成年を思わせる説明は安全ポリシーで弾かれる。年齢は 20 代で書く。
-- 顔は `public/faces/{calm,joy,shy,puzzled,upset}.jpg` と強い版 `*_strong.jpg`。SVG は画像が無いときの代替。
+- 顔は `public/faces/{calm,joy,shy,puzzled,upset}.jpg` と段階の版 `*_mid.jpg`（中）・`*_strong.jpg`（強）。無ければ一つ下の段階の絵。`*_scores.jpg` のように はじまりの id を付けると、その回だけ差し替わる（例: `shy_strong_scores.jpg` は「散らばった楽譜」でだけ楽譜で口元を隠す）。SVG は画像が無いときの代替。
 
 ## 測る
 
