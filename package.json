@@ -8,7 +8,8 @@
     "start": "node server.mjs",
     "bench": "node bench.mjs",
     "sfx:bundle": "node bundle_sfx.mjs",
-    "test": "node smoke.mjs"
+    "test": "node smoke.mjs",
+    "deploy:stg": "node deploy.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0"
