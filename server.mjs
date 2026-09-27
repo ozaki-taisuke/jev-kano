@@ -10,6 +10,7 @@
  */
 import './lib/env-load.mjs'; // .env を他の import より先に読む（TTS_VOICE などの既定値のため）
 import http from 'node:http';
+import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +26,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 loadEnv(path.join(here, '.env'));
 
 const PORT = Number(process.env.PORT || 8792);
+// HOST=0.0.0.0 で同じ Wi-Fi のスマホから遊べる（http://PC の IP:8792/）。PUBLIC=1 は公開サーバー（遊ぶ側の口にも回数の守り）
+const PUBLIC = process.env.PUBLIC === '1';
+const HOST = process.env.HOST || ((process.env.VOICE_RELAY === '1' || PUBLIC) ? '0.0.0.0' : '127.0.0.1');
 const OUT = process.env.REFLEX_GALGE_OUT || path.join(here, '_out');
 fs.mkdirSync(OUT, { recursive: true });
 const scenario = JSON.parse(fs.readFileSync(path.join(here, 'scenario.json'), 'utf8'));
@@ -217,6 +221,7 @@ const server = http.createServer(async (req, res) => {
       } catch (e) { return send(res, 502, { error: e.message }); }
     }
     if (req.method !== 'POST') return send(res, 404, { error: 'not found' });
+    if (PUBLIC && ['/api/reflex', '/api/words', '/api/voice/stream'].includes(url.pathname)) { const why = relayAllow(req); if (why) return send(res, 429, { error: why }); }
     const b = await readBody(req);
 
     if (url.pathname === '/api/reflex') {
@@ -344,15 +349,16 @@ async function fixedPcm(text, mood, voice) {
   }
   return fixedPending[name];
 }
+function lanUrls() { const out = []; try { for (const ifs of Object.values(os.networkInterfaces())) for (const i of ifs) if (i.family === 'IPv4' && !i.internal) out.push('http://' + i.address + ':' + PORT + '/'); } catch {} return out; }
 function sfxStatus(voice = DEFAULT_VOICE) {
   const all = []; for (const kind of Object.keys(INTERJECTIONS)) for (const mood of Object.keys(INTERJECTIONS[kind])) for (let tier = 0; tier < 3; tier++) if (forSpeech(sfxText(kind, mood, tier))) all.push(kind + '/' + mood + '/' + tier);
   const ready = all.filter((k) => { const [kind, mood, tier] = k.split('/'); return !!sfxExisting(kind, mood, Number(tier), voice); });
   return { total: all.length, ready, voice };
 }
 
-server.listen(PORT, RELAY ? '0.0.0.0' : '127.0.0.1', () => {
+server.listen(PORT, HOST, () => {
   if (RELAY) { console.log('#Jevカノ 声の中継サーバー :' + PORT + '（声 ' + DEFAULT_TTS_MODEL + ' / ' + MAIN_VOICE + ' / 1 人 10 分 ' + RELAY_PER_IP + ' 回・1 日 ' + RELAY_DAILY_CAP + ' 回' + (RELAY_TOKEN ? '・合言葉あり' : '') + '）'); return; }
-  console.log('#Jevカノ http://127.0.0.1:' + PORT + '/');
+  console.log('#Jevカノ http://127.0.0.1:' + PORT + '/' + (HOST === '0.0.0.0' ? '  ／ 同じ Wi-Fi のスマホから: ' + lanUrls().join(' ') : '  （スマホから遊ぶなら HOST=0.0.0.0）'));
   console.log('  反射 Jev: ' + (has.jev ? 'あり' : 'なし（TYPESAFE_API_KEY）') + ' / 言葉 ' + DEFAULT_MODEL + ': ' + (has.llm ? 'あり' : 'なし（ANTHROPIC_API_KEY）') + ' / 声 ' + DEFAULT_TTS_MODEL + ': ' + (RELAY_URL ? '中継 ' + RELAY_URL : has.tts ? 'あり' : 'なし（GEMINI_API_KEY か GOOGLE_API_KEY）'));
   console.log('  ログ: ' + path.join(OUT, 'turns.jsonl'));
   prewarmSfx();
