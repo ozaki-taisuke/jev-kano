@@ -263,3 +263,4 @@
 - Render の設計図（`render.yaml`）と Tailscale Funnel も用意したが、Funnel は本人が却下（責任の持てる置き場に）。
 
 - 本人「先読みいらなくね？ 会話なんだから。念じゃないんだから」→ 打っている途中の先読み（0.35 秒ごとに書きかけを Jev に読ませて顔だけ動かす）を既定でオフに。`?peek=1` のときだけ動く（記事で仕組みとして触れたので残す）。公開版では反射の回数も減る。
+- 本人「URL がむき出し。自分のドメインか GitHub に結びつけたい」→ 他のゲームと同じ `ozaki-taisuke.github.io/…` に。`docs/index.html`（OGP つきの案内・0.9 秒で公開版へ移動・`?stay=1` で止まる）を GitHub Pages（main の /docs）で配信。`jev.ozkk.jp` を Cloud Run に結びつける手も用意した（所有確認済み・CNAME 1 行）が、本人は GitHub を選択。
