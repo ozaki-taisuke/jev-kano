@@ -193,7 +193,7 @@
   <label class="dbg"><input type="radio" name="mode" value="llm"> LLM だけ</label>
   <span class="models dbg" id="models"></span>
   <div class="gauge"><span>親しさ</span><div class="bar"><i id="affBar"></i></div><span class="dbg" id="affNum">50</span></div>
-  <span class="stat">片付け<b id="turnsLeft">—</b></span>
+  <span class="stat"><span id="turnsLabel">片付け</span><b id="turnsLeft">—</b></span>
   <span class="stat" id="topicsStat" style="display:none">話題<b id="topics"></b></span>
   <button type="button" id="logBtn" title="これまでの会話">ログ</button>
   <label id="voiceLabel"><input type="checkbox" id="voice" checked> <span id="voiceText">声</span></label>
@@ -333,7 +333,7 @@
 
 <script>
 const MOOD_JA = { joy:'嬉しい', shy:'照れる', puzzled:'困る', upset:'不機嫌', calm:'平静' };
-const TOPIC_JA = { book:'本', cook:'料理', stage:'明日のステージ', circle:'サークル' };
+const TOPIC_JA = { book:'本', cook:'料理', stage:'ステージ', circle:'サークル' };
 function toast(t) { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); }
 const FACES = {
   joy:     { closed:true,  irisDx:0,  irisDy:0,  eyeSy:1,   browL:'M-48 -32 Q-34 -39 -16 -33', browR:'M16 -33 Q34 -39 48 -32', mouth:'M-14 52 Q0 68 14 52 Z', mouthFill:'#d9536f', blush:.55, lines:0, sweat:0, anger:0, sparkle:1, dots:0 },
@@ -349,6 +349,9 @@ function memSet(m) { try { localStorage.setItem(MEM_KEY, JSON.stringify(m)); } c
 function memMark(episodeId, kind) { const m = memGet(); m.seen = m.seen || {}; m.seen[episodeId] = m.seen[episodeId] || {}; m.seen[episodeId][kind] = (m.seen[episodeId][kind] || 0) + 1; if (kind === 'perfect') m.perfect = true; memSet(m); }
 function episodeDone(episodeId) { const s = (memGet().seen || {})[episodeId]; return !!s && Object.keys(s).length > 0; }
 let cfg, S;
+// はじまりごとに差し替えられる文（目標・導入・帯の言葉・結末）。書いていなければ共通のもの。当日の話（ステージ袖）で前夜の文を出さないため
+const epText = (k, ep = S && S.episode) => (ep && ep[k] != null ? ep[k] : cfg.scenario[k]);
+function epEndings(ep = S && S.episode) { const base = cfg.scenario.endings, over = (ep && ep.endings) || {}, out = {}; for (const k of Object.keys(base)) out[k] = { ...base[k], ...(over[k] || {}) }; return out; }
 
 // ---- 立ち絵: 背景が一様な緑の絵を、画面側で透明にして背景の上に立たせる ----
 const CUT = {}; // 'shy_strong' → data URL（透明 PNG）
@@ -616,7 +619,7 @@ function reset() {
   $('clock').classList.add('idle');
   $('ending').style.display = 'none';
   // 状況の説明: 彼女が見えた状態で、主人公のモノローグ（導入 → その日の場面）。クリックで彼女の第一声へ
-  const mono = (cfg.scenario.intro || '').replace(/\{name\}/g, S.heroineName);
+  const mono = (epText('intro') || '').replace(/\{name\}/g, S.heroineName);
   const narr = ep.narration || ep.scene || cfg.scenario.scene;
   S.pages = [mono, narr].filter(Boolean);
   if (S.pages.length) { S.waitOpen = true; add('intro mono', S.pages.shift()); }
@@ -634,7 +637,7 @@ function openingLine() {
   speakFixed(ep.opening, 'shy');
 }
 for (const id of ['winText', 'winNext']) $(id).addEventListener('click', () => { if (S && S.waitOpen) openingLine(); });
-function turnsLeft() { const n = cfg.scenario.maxTurns - S.turn; $('turnsLeft').textContent = n > 0 ? '残り ' + n : '終わり'; }
+function turnsLeft() { const n = cfg.scenario.maxTurns - S.turn, done = epText('turnsDone'); $('turnsLabel').textContent = n > 0 || !done ? (epText('turnsLabel') || '片付け') : ''; $('turnsLeft').textContent = n > 0 ? '残り ' + n : (done || '終わり'); }
 function chips() {
   const c = $('chips'); c.innerHTML = '';
   const sug = (S.episode && S.episode.suggestions) || cfg.scenario.suggestions; const list = sug[S.turn % sug.length] || [];
@@ -754,14 +757,14 @@ async function heroineInitiative(prevRec) {
   } catch (e) { /* 振れなければ黙る */ }
 }
 function ending(force) {
-  const e = cfg.scenario.endings;
+  const e = epEndings();
   const kind = force || (e.perfect && S.affection >= e.perfect.min ? 'perfect' : S.affection >= e.good.min ? 'good' : S.affection >= e.normal.min ? 'normal' : 'bad');
   $('ending').classList.toggle('perfect', kind === 'perfect');
   if (kind === 'perfect') setFace('joy', '', { strong: true });
   S.over = true; S.busy = true; $('send').disabled = true;
   if (kind === 'leave') { add('her', e.leave.text); S.history.push({ role: 'assistant', text: e.leave.text }); }
   if (S.episode) memMark(S.episode.id, kind);
-  $('endTitle').textContent = (S.episode ? S.episode.title + '：' : '') + { perfect:'パーフェクト', good:'達成', normal:'ふつう', bad:'失敗', leave:'失敗（帰ってしまった）' }[kind] + (document.body.classList.contains('debug') ? '（好感度 ' + S.affection + '）' : '');
+  $('endTitle').textContent = (S.episode ? S.episode.title + '：' : '') + (e[kind].label || { perfect:'パーフェクト', good:'達成', normal:'ふつう', bad:'失敗', leave:'失敗（帰ってしまった）' }[kind]) + (document.body.classList.contains('debug') ? '（好感度 ' + S.affection + '）' : '');
   $('endText').textContent = e[kind].text;
   speakFixed(e[kind].text, kind === 'perfect' || kind === 'good' ? 'joy' : kind === 'normal' ? 'calm' : 'upset');
   const t = S.turns, avg = (k) => { const xs = t.map((r) => r[k]).filter((x) => x != null); return xs.length ? sec(xs.reduce((a, b) => a + b, 0) / xs.length) : '—'; };
@@ -802,9 +805,12 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
   $('debugToggle').addEventListener('change', () => setDbg($('debugToggle').checked));
   $('debugToggle2').addEventListener('change', () => setDbg($('debugToggle2').checked));
   // 遊び方
-  const hb = $('helpBody'); hb.innerHTML = '';
-  if (c.scenario.goal) { const dt = document.createElement('dt'); dt.textContent = '目標'; const dd = document.createElement('dd'); dd.textContent = c.scenario.goal; hb.appendChild(dt); hb.appendChild(dd); }
-  for (const [k, v] of Object.entries(c.scenario.rules || {})) { const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; hb.appendChild(dt); hb.appendChild(dd); }
+  const renderHelp = (ep) => { // はじまりが決まったら、そのはじまりの目標と決まりで書き直す
+    const hb = $('helpBody'); hb.innerHTML = ''; const goal = epText('goal', ep);
+    if (goal) { const dt = document.createElement('dt'); dt.textContent = '目標'; const dd = document.createElement('dd'); dd.textContent = goal; hb.appendChild(dt); hb.appendChild(dd); }
+    for (const [k, v] of Object.entries({ ...(c.scenario.rules || {}), ...((ep && ep.rules) || {}) })) { const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; hb.appendChild(dt); hb.appendChild(dd); }
+  };
+  renderHelp(null);
   $('browserVoiceToggle').checked = useBrowserVoice;
   $('browserVoiceToggle').addEventListener('change', () => { useBrowserVoice = $('browserVoiceToggle').checked; try { localStorage.setItem('jevkano_browser_voice', useBrowserVoice ? '1' : '0'); } catch {} });
   $('helpBtn').onclick = () => { $('help').style.display = 'flex'; };
@@ -821,7 +827,9 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
   };
   renderEpisodes(); window.__renderEpisodes = renderEpisodes;
   const pickEpisode = () => { const eps = (c.scenario.episodes || []); const mem = memGet(); if (epSel.value) return eps.find((e) => e.id === epSel.value); const open = eps.filter((e) => !e.locked || mem.perfect); return open.find((e) => !episodeDone(e.id)) || open[Math.floor(Math.random() * open.length)] || eps[0]; };
-  $('titleGoal').textContent = '目標: ' + (c.scenario.goal || '') + ' 失敗: 親しさが下がりきる、または彼女が帰ってしまう。';
+  const renderGoal = () => { const ep = (c.scenario.episodes || []).find((e) => e.id === epSel.value) || null; $('titleGoal').textContent = '目標: ' + (epText('goal', ep) || '') + ' 失敗: ' + (epText('failNote', ep) || '親しさが下がりきる、または彼女が帰ってしまう。'); };
+  renderGoal(); epSel.addEventListener('change', renderGoal);
+  window.__renderEpisodes = () => { renderEpisodes(); renderGoal(); }; // タイトルに戻ったら選択が外れるので、目標も共通のものに戻す
   try { const saved = localStorage.getItem('reflex_galge_player'); if (saved) $('playerName').value = saved; } catch {}
   S = null;
   $('startBtn').onclick = () => {
@@ -830,6 +838,7 @@ fetch('/api/config').then((r) => r.json()).then((c) => {
     for (const k of Object.keys(sfxBuf)) delete sfxBuf[k];
     S = { playerName: pn, heroineName: sel.value, episode: pickEpisode() };
     $('title').style.display = 'none'; document.body.classList.remove('on-title');
+    renderHelp(S.episode);
     reset();
     prefetchSfx();
   };

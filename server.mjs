@@ -172,7 +172,7 @@ function turnInput(b) {
   }
   return {
     repeat,
-    heroineName, playerName, topics, playerRole: scenario.playerRole || '',
+    heroineName, playerName, topics, playerRole: (ep && ep.playerRole) || scenario.playerRole || '', // 立場ははじまりごとに差し替えられる（当日の話で「明日は出ない」と渡さない）
     episode: ep ? ep.id : null,
     initiative: b.initiative === true,
     probe: b.probe === true,
