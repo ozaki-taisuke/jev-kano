@@ -69,6 +69,16 @@
 - 自分の声を作るなら `node design_voice.mjs --preset` で候補を作って試聴し、気に入った `voice_…` を `.env` の `TTS_VOICE` に。既製の名前（`Leda`・`Kore` など）も指定できる。切り替え先は `TTS_FALLBACK_VOICE`。
 - **声の中継**: 作者が中継サーバーを立てている間は、`.env` に `VOICE_RELAY_URL=（作者が公開する URL）` を書けば、Gemini の鍵なしで、彼女の声のまま読める（あなたの鍵は Jev と Claude だけ）。中継の URL は記事か Issue で。1 人 10 分 40 回・全体 1 日 3,000 回の上限つき。
 
+### URL を開けば遊べる形で置く（Render・無料枠）
+
+自分の PC を公開せずに「誰でも URL で遊べる」形にするなら、Render の無料枠が一番手数が少ない（カード不要）。リポジトリに設計図 `render.yaml` がある。
+
+1. https://render.com に GitHub でサインイン → **New → Blueprint** → このリポジトリ（fork でもよい）を選ぶ
+2. 聞かれる 3 つの鍵（`TYPESAFE_API_KEY`・`ANTHROPIC_API_KEY`・`GEMINI_API_KEY`）を入れる。`TTS_VOICE` は自分の声か既製の名前に（作者の声 ID は作者の鍵でしか鳴らない）
+3. Deploy → `https://jev-kano-xxxx.onrender.com` が遊べる URL
+
+守り: `PUBLIC=1` で 1 人（IP）10 分 40 回・全体 1 日 1,200 回（≒ 40 ゲーム）。数字は Dashboard の環境変数で変えられる。費用は置いた人の 3 つの鍵の分（Claude が本体。Opus で 1 ゲーム 30〜60 円、`LLM_MODEL=claude-sonnet-5` なら半分以下）。無料枠は 15 分無操作で眠り、次の最初の 1 回だけ 30〜60 秒待つ。
+
 ### 中継サーバーを自分で立てる（作者向け・同じことをしたい人向け）
 
 同じコードを `VOICE_RELAY=1` で起動すると、声の口（`/api/voice/stream`・`/api/sfx/*`・`/api/fixed`）だけを公開する中継サーバーになる。Jev・Claude・画面は出さない。鍵は Gemini だけ持てばよい。
