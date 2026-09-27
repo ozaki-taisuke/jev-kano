@@ -29,6 +29,9 @@ try {
   const html = await (await fetch('http://127.0.0.1:' + PORT + '/')).text();
   if (!/<title>#Jevカノ<\/title>/.test(html)) fail('画面の題が違う');
   const m = html.match(/<script>([\s\S]*)<\/script>/); new Function(m[1]); // 画面のスクリプトが構文として通る
+  const rig = await (await fetch('http://127.0.0.1:' + PORT + '/rig')).text();
+  if (!/簡易リグの実験/.test(rig)) fail('/rig が返らない');
+  const mr = rig.match(/<script>([\s\S]*)<\/script>/); new Function(mr[1]);
   const r1 = await fetch('http://127.0.0.1:' + PORT + '/api/reflex', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ line: 'こんにちは', affection: 50 }) });
   if (r1.status !== 503) fail('鍵なしの /api/reflex が 503 でない: ' + r1.status);
   const r2 = await fetch('http://127.0.0.1:' + PORT + '/api/fixed?text=' + encodeURIComponent('任意の文') + '&mood=shy');

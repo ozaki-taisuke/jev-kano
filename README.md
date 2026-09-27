@@ -23,7 +23,7 @@
 - 寄り道: 本・料理・明日のステージ・サークルの話で話題が開き、彼女の方から続けるようになる。
 - 仲良くなると彼女から問いかけてくる。軽く流す・茶化す・上辺の褒めは傷つく。誠実なら大きく進む。
 - 同じ触れ方でも状況で意味が変わる（弱音のあとの肩は「心配」）。
-- はじまりは 4 つ（片付け・停電・差し入れ・楽譜）。パーフェクトで 5 つ目（当日のステージ袖）が開く。
+- はじまりは 4 つ（片付け・停電・差し入れ・楽譜）。5 つ目（当日のステージ袖）は、パーフェクトを一度出すか、4 つすべてで「達成」以上を出すと開く。見た記録はブラウザごと・URL ごと（本番と stg と手元は別）。
 
 数字（時間・判定名・好感度の数値）は普段は出ない。`?debug=1` か「？」の中のデバッグで出る。
 
@@ -103,6 +103,20 @@ gcloud run deploy jev-kano-voice --source . --region asia-northeast1 --allow-una
 
 出てきた URL を配る。守り: 1 人（IP）10 分 `RELAY_PER_IP_10MIN`（既定 40）・全体 1 日 `RELAY_DAILY_CAP`（既定 3,000）・文は 200 字まで・`RELAY_TOKEN` を両側に書けば合言葉つき。費用は Gemini TTS の分だけ（Tier 2 なら 1 日 100 回の壁は無い）。
 
+### 実験を本番と分けて置く（stg）
+
+- 本体を変えない実験は、別の頁として同じサーバーに置く。いまあるのは `/rig`（簡易リグ: 「表情の状態 → 描画」の層を挟み、反射の顔を一瞬出してから取り繕う・息づかい・赤面の残り。本番の差し替えと左右に並べて同じ入力で比較する）。手元なら http://127.0.0.1:8792/rig 。
+- 外から比較したいときは、Cloud Run に**別のサービス名**で置く（本番と同じ鍵・上限は小さく）。鍵の置き場は `.env` の 1 か所だけ。deploy のときだけ `.env` から YAML を作って gcloud に渡し、終わったら消す（`deploy.mjs`）。
+- **ブランチと置き場の対応は固定**: `stg` ブランチ → `jev-kano-stg`、`main` → 本番 `jev-kano`。stg に載せたいものは、作業ブランチを `stg` に merge して push する（`stg` は「いま stg に載っているもの」で、日付は要らない。置いた版は `/api/config` の `app.rev` に出る）。リポジトリの root で:
+
+  ```bash
+  npm run stg                       # stg ブランチに切り替えて最新を取り、jev-kano-stg に置く（1 人 10 分 30 手・1 日 100 手）
+  node deploy.mjs --dry-run         # 渡す変数の名前と gcloud の行を見るだけ
+  node deploy.mjs --service jev-kano --cap 400   # 本番を置き直す（main で）
+  ```
+
+  `deploy.mjs` は、stg なら `stg` ブランチ、本番なら `main` で未コミットの変更が無いときだけ置く（`--force` で外せる）。置いた版は `/api/config` の `app.env`（stg／prod）と `app.rev`（コミット）で分かり、stg はタブの題に `[stg]` が付く。`.env` のうち手元専用（`PORT`・`HOST`・`REFLEX_GALGE_OUT`）は渡さない（Cloud Run は `PORT` を自分で決めるので、渡すと落ちる）。`--model claude-sonnet-5` で実験だけ安いモデルに。本番（`jev-kano`）は触らない。眠っている間の費用はどちらもほぼ 0。実験をやめたら `gcloud run services delete jev-kano-stg --region asia-northeast1`。
+
 ### つまずいたら
 
 - **ポート 8792 が使われている** → `.env` に `PORT=8793` など。
@@ -123,13 +137,14 @@ node design_voice.mjs --preset            # 声質の候補を作って試聴 WA
 node design_voice.mjs --audition voice_xxx "台詞"
 node make_faces.mjs --base                # 基準画 1 枚 → 表情 4 枚（同じ人物のまま編集）
 node make_faces.mjs --from making/faces/xxx.jpg
+node make_faces.mjs --variant shy_strong --green   # 名前つきの 1 枚（照れ隠しの袖・怒りの段階など。make_faces.mjs の VARIANTS）と緑背景版
 node make_cutout.mjs --all                # 顔の絵の背景を緑に（立ち絵用。public/faces/green/）
 node make_bg.mjs                          # 背景の絵（部室・夕方）→ public/bg/clubroom.jpg。--id wings でステージ袖
 ```
 
 - かわいさの大半は声質と絵で決まる。プロンプトで直すのは調子だけ。
 - 未成年を思わせる説明は安全ポリシーで弾かれる。年齢は 20 代で書く。
-- 顔は `public/faces/{calm,joy,shy,puzzled,upset}.jpg` と強い版 `*_strong.jpg`。SVG は画像が無いときの代替。
+- 顔は `public/faces/{calm,joy,shy,puzzled,upset}.jpg` と段階の版 `*_mid.jpg`（中）・`*_strong.jpg`（強）。無ければ一つ下の段階の絵。`*_scores.jpg` のように はじまりの id を付けると、その回だけ差し替わる（例: `shy_strong_scores.jpg` は「散らばった楽譜」でだけ楽譜で口元を隠す）。SVG は画像が無いときの代替。
 
 ## 測る
 

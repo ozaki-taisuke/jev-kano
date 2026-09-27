@@ -6,6 +6,11 @@
  *   node make_faces.mjs --base     … 基準の 1 枚（calm）だけ作る（気に入るまでやり直す）
  *   node make_faces.mjs --from calm.jpg   … 手持ちの基準画から 4 表情だけ作る
  *   node make_faces.mjs --base --character "人物の説明（英語）" --to making/faces/v2_calm.jpg   … 別の説明で基準画の候補を別の場所に
+ *   node make_faces.mjs --variant shy_strong --green    … 名前つきの 1 枚（下の VARIANTS。基準は public/faces/calm.jpg）を作り、--green で緑背景版も
+ *   node make_faces.mjs --variant upset_mid --to making/faces/cand_upset_mid.jpg   … 候補として別の場所に（気に入ったら public/faces/ にコピー）
+ *   node make_faces.mjs --variant shy_strong_scores --prompt "…（英語）"   … 指示を差し替えて
+ *
+ * 絵の名前 = 本音 + 段階（_mid・_strong）+ はじまり（_scores など。その回だけ差し替わる）。server.mjs の FACE_NAME と同じ。
  *
  * 画像生成に無料枠は無い（2026-09 の料金表）。1 枚 $0.045〜。IMAGE_MODEL で変更（既定 gemini-3.1-flash-image）。
  * 人物の説明は年齢を 20 代で書く（未成年を思わせる説明は安全ポリシーで弾かれる）。
@@ -34,6 +39,15 @@ const EXPRESSIONS = {
   upset: 'Change only the facial expression, subtly: quiet displeasure. Eyebrows slightly drawn, eyes lowered and turned away in a cold, hurt way, mouth closed and tight; she is upset but withdrawn, not glaring, no anger mark.',
 };
 const KEEP = ' Keep exactly the same character, hair, clothes, art style, framing, camera angle, lighting and background as the reference image.';
+/** 名前つきの 1 枚（issue #19・#20）。ポーズが変わるものは KEEP の「framing」に「pose」を含めない */
+const VARIANTS = {
+  // #20 照れ隠しを本以外で: 既定は袖（小道具なし）。_scores は「散らばった楽譜」の回だけ
+  shy_strong: 'Change the pose and expression: she pulls the long sleeve of her gray cardigan over her hand and presses it against her mouth to hide it, eyes closed tight, a deep blush; embarrassed and hiding. No book anywhere. No steam, no sweat marks, no visible open mouth.',
+  shy_strong_scores: 'Change the pose and expression: she holds a sheet of music (plain staff paper, no readable text or logos) up in front of her mouth and nose with both hands, eyes closed, a deep blush; embarrassed and hiding behind it. No book anywhere.',
+  // #19 怒りの段階: 中は「むっ」、強は睨まずに「傷つきながら、はっきり拒む」
+  upset_mid: 'Change only the facial expression, subtly: mild displeasure, a small "hmph". Eyebrows drawn together just a little, lips pressed shut, eyes still turned away and lowered; she is bothered but timid, not glaring, no frown lines, no anger mark, no open mouth.',
+  upset_strong: 'Change only the facial expression: hurt and firmly refusing. She looks straight at the viewer with wounded, glistening eyes, eyebrows drawn together but no deep frown lines, mouth closed and tense; frightened yet resolute, not glaring, not hostile, no anger mark, no tears falling.',
+};
 
 async function gen(inputs) {
   const body = { model: MODEL, input: inputs, response_format: { type: 'image', mime_type: 'image/jpeg', aspect_ratio: '1:1', image_size: '1K' } };
@@ -50,6 +64,23 @@ async function gen(inputs) {
 (async () => {
   let base;
   const from = arg('--from');
+  const variant = arg('--variant');
+  if (variant) { // 名前つきの 1 枚
+    if (!/^(joy|shy|puzzled|upset|calm)(_mid|_strong)?(_[a-z][a-z0-9]*)?$/.test(variant)) throw new Error('名前は 本音(_mid|_strong)?(_はじまり)? の形: ' + variant);
+    const prompt = arg('--prompt') || VARIANTS[variant]; if (!prompt) throw new Error('この名前の指示が VARIANTS に無い。--prompt で渡す: ' + variant);
+    const ref = from || path.join(DIR, 'calm.jpg'); base = fs.readFileSync(ref);
+    const keep = /pose/i.test(prompt) ? KEEP.replace('framing, ', '') : KEEP; // ポーズを変える指示のときは枠だけ固定しない
+    process.stdout.write(variant + '（基準 ' + path.relative(here, ref) + '）… ');
+    const img = await gen([{ type: 'text', text: prompt + keep }, { type: 'image', mime_type: 'image/jpeg', data: base.toString('base64') }]);
+    const to = arg('--to') || path.join(DIR, variant + '.jpg'); fs.mkdirSync(path.dirname(to), { recursive: true }); fs.writeFileSync(to, img); console.log(path.relative(here, to));
+    if (process.argv.includes('--green')) { // 緑背景版（立ち絵用）も
+      const { spawnSync } = await import('node:child_process');
+      const g = to.startsWith(DIR) ? path.join(DIR, 'green', path.basename(to)) : to.replace(/\.jpe?g$/i, '_green.jpg');
+      const r = spawnSync(process.execPath, [path.join(here, 'make_cutout.mjs'), to, g], { stdio: 'inherit' }); if (r.status !== 0) throw new Error('緑背景版が作れなかった');
+    }
+    console.log(to.startsWith(DIR) ? 'サーバーを立て直すと使われる（' + variant + '）' : '気に入ったら public/faces/' + variant + '.jpg にコピーして、node make_cutout.mjs で緑背景版を');
+    return;
+  }
   if (from) base = fs.readFileSync(from);
   else {
     process.stdout.write('基準（calm）… ');

@@ -77,14 +77,16 @@ async function relayFetch(pathAndQuery, init = {}) {
 // 顔の画像（任意）: public/faces/{joy,shy,puzzled,upset,calm}.(png|webp|jpg) があれば SVG の代わりに使う
 const FACES_DIR = path.join(here, 'public', 'faces');
 const MIME = { '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg' };
+const FACE_NAME = /^(joy|shy|puzzled|upset|calm)(_mid|_strong)?(_[a-z][a-z0-9]*)?\.(png|webp|jpe?g)$/i;
 function faceImages() {
   const out = {};
   let files = [];
   try { files = fs.readdirSync(FACES_DIR); } catch { return out; }
-  for (const f of files) { const m = f.match(/^(joy|shy|puzzled|upset|calm)(_strong)?\.(png|webp|jpe?g)$/i); if (m) { const k = m[1].toLowerCase() + (m[2] || ''); if (!out[k]) out[k] = '/faces/' + f; } }
+  // 名前: 本音 + 段階（_mid・_strong。無ければ弱・中は素、強は _strong）+ はじまり（_scores など。その回だけ差し替わる）
+  for (const f of files) { const m = f.match(FACE_NAME); if (m) { const k = m[1].toLowerCase() + (m[2] || '') + (m[3] || ''); if (!out[k]) out[k] = '/faces/' + f; } }
   // 切り抜き用（背景が一様な緑）。public/faces/green/ にあれば画面側で緑を透明にして背景の上に立たせる
   let greens = []; try { greens = fs.readdirSync(path.join(FACES_DIR, 'green')); } catch {}
-  for (const f of greens) { const m = f.match(/^(joy|shy|puzzled|upset|calm)(_strong)?\.(png|webp|jpe?g)$/i); if (m) { out.green = out.green || {}; out.green[m[1].toLowerCase() + (m[2] || '')] = '/faces/green/' + f; } }
+  for (const f of greens) { const m = f.match(FACE_NAME); if (m) { out.green = out.green || {}; out.green[m[1].toLowerCase() + (m[2] || '') + (m[3] || '')] = '/faces/green/' + f; } }
   return out;
 }
 
@@ -175,6 +177,7 @@ function turnInput(b) {
     action,
     affection: Math.max(0, Math.min(100, Number(b.affection) || scenario.startAffection)),
     moodHint: MOODS[b.mood] ? b.mood : null,
+    attitude: ['sincere', 'vague', 'deflect', 'tease', 'flatter'].includes(b.attitude) ? b.attitude : null, // 問いへの返事の態度（Jev の判定。言葉の強さをそろえる）
   };
 }
 
@@ -192,12 +195,16 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(fs.readFileSync(INDEX));
     }
+    if (req.method === 'GET' && url.pathname === '/rig') { // 実験: 簡易リグを本番の描画と並べて比較する頁（本体は変えない）
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(fs.readFileSync(path.join(here, 'public', 'rig.html')));
+    }
     if (req.method === 'GET' && url.pathname === '/api/config') {
-      return send(res, 200, { has, ttsDown: ttsDown(), ttsRetryIn: ttsDown() ? ttsRetryIn() : null, llmModel: DEFAULT_MODEL, ttsModel: DEFAULT_TTS_MODEL, ttsVoice: DEFAULT_VOICE, scenario, faces: faceImages(), backgrounds: bgImages(), interjections: INTERJECTIONS, tiers: [0.6, 0.85], sfxReady: sfxStatus(MAIN_VOICE).ready.length, fallbackLines: FALLBACK_LINES, voices: scenario.voices || {} });
+      return send(res, 200, { app: { env: process.env.APP_ENV || 'local', rev: process.env.APP_REV || '' }, has, ttsDown: ttsDown(), ttsRetryIn: ttsDown() ? ttsRetryIn() : null, llmModel: DEFAULT_MODEL, ttsModel: DEFAULT_TTS_MODEL, ttsVoice: DEFAULT_VOICE, scenario, faces: faceImages(), backgrounds: bgImages(), interjections: INTERJECTIONS, tiers: [0.6, 0.85], sfxReady: sfxStatus(MAIN_VOICE).ready.length, fallbackLines: FALLBACK_LINES, voices: scenario.voices || {} });
     }
     if (req.method === 'GET' && url.pathname.startsWith('/faces/')) {
       const name = path.basename(url.pathname); const ext = path.extname(name).toLowerCase(); const sub = url.pathname.startsWith('/faces/green/') ? 'green' : '';
-      if (!MIME[ext] || !/^(joy|shy|puzzled|upset|calm)(_strong)?\./i.test(name)) return send(res, 404, { error: 'not found' });
+      if (!MIME[ext] || !FACE_NAME.test(name)) return send(res, 404, { error: 'not found' });
       try { const buf = fs.readFileSync(path.join(FACES_DIR, sub, name)); res.writeHead(200, { 'Content-Type': MIME[ext], 'Cache-Control': 'public, max-age=600' }); return res.end(buf); }
       catch { return send(res, 404, { error: 'not found' }); }
     }
@@ -246,8 +253,12 @@ const server = http.createServer(async (req, res) => {
       if (inp.action && inp.repeat >= 2 && r.mood !== 'upset') { r.moodByJev = r.mood; r.mood = 'upset'; r.forced = 'repeat'; r.deltaRound = Math.min(r.deltaRound, -1); r.hurt = Math.max(r.hurt ?? 0, 0.9); r.moodProbs.upset = Math.max(r.moodProbs.upset || 0, 0.9); }
       r.repeat = inp.repeat;
       if (inp.probe && !inp.action && att) {
-        const p = att.probs || {}; const bad = (p.deflect || 0) + (p.tease || 0) + (p.flatter || 0);
-        if (bad >= 0.6) { r.moodByJev = r.mood; r.mood = 'upset'; r.forced = 'dismiss'; r.deltaRound = -2; r.hurt = Math.max(r.hurt ?? 0, 0.85); r.moodProbs.upset = Math.max(r.moodProbs.upset || 0, 0.9); }
+        // 流し方で段階を分ける（前は流したら必ず「強」の怒りで、「忘れちゃった」程度でも睨まれた）:
+        //   茶化す・上辺の褒め → 怒り・強（-2）／ はぐらかす・話をそらす → 怒り・中（-2）／ 曖昧（忘れた・分からない）→ 困惑・弱〜中（-1。怒らない）
+        //   「答えている」が 0.4 以上なら流していない扱い（冗談が添えてあるだけ）。強い怒りは、茶化す・上辺の褒め だけで 0.6 以上のときだけ
+        const p = att.probs || {}; const harsh = (p.tease || 0) + (p.flatter || 0); const bad = harsh + (p.deflect || 0);
+        if (bad >= 0.6 && (p.sincere || 0) < 0.4) { r.moodByJev = r.mood; r.mood = 'upset'; r.forced = 'dismiss'; r.deltaRound = -2; const strong = harsh >= 0.6; r.hurt = Math.max(r.hurt ?? 0, strong ? 0.85 : 0.7); r.moodProbs.upset = Math.max(r.moodProbs.upset || 0, strong ? 0.9 : 0.7); }
+        else if ((p.vague || 0) >= 0.5 && (p.sincere || 0) < 0.6) { r.moodByJev = r.mood; r.mood = 'puzzled'; r.forced = 'vague'; r.deltaRound = Math.min(r.deltaRound, -1); r.hurt = Math.max(r.hurt ?? 0, 0.3); r.moodProbs.puzzled = Math.max(r.moodProbs.puzzled || 0, 0.65); }
         else if ((p.sincere || 0) >= 0.6) { r.sincere = true; r.deltaRound = Math.min(2, Math.max(r.deltaRound, 1) + 1); }
       }
       r.tier = tierOf(r.moodProbs[r.mood] || 0);
@@ -370,6 +381,7 @@ server.listen(PORT, HOST, () => {
   if (RELAY) { console.log('#Jevカノ 声の中継サーバー :' + PORT + '（声 ' + DEFAULT_TTS_MODEL + ' / ' + MAIN_VOICE + ' / 1 人 10 分 ' + RELAY_PER_IP + ' 回・1 日 ' + RELAY_DAILY_CAP + ' 回' + (RELAY_TOKEN ? '・合言葉あり' : '') + '）'); return; }
   console.log('#Jevカノ http://127.0.0.1:' + PORT + '/' + (HOST === '0.0.0.0' ? '  ／ 同じ Wi-Fi のスマホから: ' + lanUrls().join(' ') : '  （スマホから遊ぶなら HOST=0.0.0.0）'));
   console.log('  反射 Jev: ' + (has.jev ? 'あり' : 'なし（TYPESAFE_API_KEY）') + ' / 言葉 ' + DEFAULT_MODEL + ': ' + (has.llm ? 'あり' : 'なし（ANTHROPIC_API_KEY）') + ' / 声 ' + DEFAULT_TTS_MODEL + ': ' + (RELAY_URL ? '中継 ' + RELAY_URL : has.tts ? 'あり' : 'なし（GEMINI_API_KEY か GOOGLE_API_KEY）'));
-  console.log('  ログ: ' + path.join(OUT, 'turns.jsonl'));
+  console.log('  ログ: ' + path.join(OUT, 'turns.jsonl') + (process.env.APP_ENV ? '  環境: ' + process.env.APP_ENV + ' @ ' + (process.env.APP_REV || '?') : ''));
+  const envFile = path.join(here, '.env'); console.log('  設定: ' + envFile + (fs.existsSync(envFile) ? '' : '（無い。環境変数だけで動いている。作るなら .env.example をコピー）'));
   prewarmSfx();
 });
