@@ -41,8 +41,9 @@
   .notice { position:fixed; left:50%; top:calc(var(--hud, 44px) + 8px); transform:translateX(-50%); z-index:6; font-size:12px; color:#fff; background:rgba(199,125,18,.85); border-radius:999px; padding:4px 12px; max-width:90vw; text-align:center; }
   .notice:empty { display:none; }
   /* 立ち絵 */
-  .stage { position:fixed; z-index:2; width:var(--stage); height:var(--stage); left:max(4vw, calc(50vw - 560px)); bottom:calc(var(--win) - 12px); }
-  @media (max-width:800px) { .stage { left:50%; transform:translateX(-50%); width:min(88vw, calc(100vh - var(--win) - 60px)); height:auto; aspect-ratio:1; } }
+  /* 立ち絵の大きさと位置は JS（fitWin）が決める: 縦が足りないときは縮めずに、下 4 割までメッセージ窓の後ろに隠す */
+  .stage { position:fixed; z-index:2; width:var(--stage); height:var(--stage); left:max(4vw, calc(50vw - 560px)); bottom:var(--stage-bottom, var(--win)); }
+  @media (max-width:800px) { .stage { left:50%; transform:translateX(-50%); } }
   .stage svg, .stage img.photo { width:100%; height:100%; object-fit:contain; display:block; filter:drop-shadow(0 10px 18px rgba(0,0,0,.35)); }
   .stage img.photo.framed { border-radius:18px; border:2px solid rgba(255,255,255,.75); box-shadow:0 12px 30px rgba(0,0,0,.35); }
   #photoZones { position:absolute; inset:0; }
@@ -410,7 +411,17 @@ function renderWin() {
   txt.innerHTML = last.innerHTML;
 }
 new MutationObserver(renderWin).observe($('log'), { childList: true, subtree: true, characterData: true });
-function fitWin() { document.documentElement.style.setProperty('--clock', $('clock').offsetHeight + 'px'); document.documentElement.style.setProperty('--win', ($('win').offsetHeight + $('clock').offsetHeight + 18) + 'px'); document.documentElement.style.setProperty('--hud', document.querySelector('.hud').offsetHeight + 'px'); }
+function fitWin() {
+  const R = document.documentElement.style, hud = document.querySelector('.hud').offsetHeight, clockH = $('clock').offsetHeight, win = $('win').offsetHeight + clockH + 18;
+  R.setProperty('--clock', clockH + 'px'); R.setProperty('--win', win + 'px'); R.setProperty('--hud', hud + 'px');
+  // 立ち絵: 望む大きさは高さの 82%（最大 600px）。窓の上に入りきらなければ、縮める前に下 38% までを窓の後ろに隠す
+  const want = Math.min(600, innerHeight * 0.82, innerWidth <= 800 ? innerWidth * 0.88 : 1e9);
+  const space = innerHeight - hud - 10 - win;
+  let h = want, overlap = 0;
+  if (space < want) { h = Math.max(260, Math.min(want, space / 0.62)); overlap = Math.max(0, h - space); }
+  R.setProperty('--stage', Math.round(h) + 'px'); R.setProperty('--stage-bottom', Math.round(win - overlap) + 'px');
+}
+addEventListener('resize', fitWin);
 new ResizeObserver(fitWin).observe($('win')); new ResizeObserver(fitWin).observe(document.querySelector('.hud')); new ResizeObserver(fitWin).observe($('clock'));
 
 async function post(path, body) {
