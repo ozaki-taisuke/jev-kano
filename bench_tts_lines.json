@@ -1,0 +1,16 @@
+{
+  "_note": "声の聞き比べに使う台詞（bench_tts.mjs）。ゲームの実際の文から、これまで声でつまずいた型を選んだ。経緯は MAKING.md の 9/27（無音・短い叫び・声量）。probe: true の行は、指示の言語と「……」の扱いも比べる",
+  "lines": [
+    { "id": "opening", "text": "あっ……すみません、ケーブル、絡まって……。今、ほどきますから。……あの、明日の、ステージのこと……いえ。なんでも、ないです。", "mood": "shy", "kind": "line", "intensity": 0.7, "affection": 50, "probe": true, "why": "冒頭。「……」が 5 つ。Gemini は最初 16.7 秒のうち 12.7 秒が無音だった（「……」を読点に替えて 8.5 秒）" },
+    { "id": "hya", "text": "ひゃっ！", "mood": "shy", "kind": "action", "intensity": 0.95, "affection": 50, "probe": true, "why": "短い叫び。Gemini では 0.64 秒・頭 0.23 秒が無音で「うっ」に聞こえた（ボツ）" },
+    { "id": "a_strong", "text": "あ、っ……！", "mood": "shy", "kind": "action", "intensity": 0.95, "affection": 50, "why": "いまの一言（触れられて照れる・強）" },
+    { "id": "fufu", "text": "……ふふ", "mood": "joy", "kind": "line", "intensity": 0.95, "affection": 70, "why": "笑い。文字を読むのか、笑うのか" },
+    { "id": "yamete", "text": "……やめて、ください！", "mood": "upset", "kind": "action", "intensity": 0.95, "affection": 50, "why": "怒っても丁寧語。声を張らずに、はっきり拒む" },
+    { "id": "puzzled", "text": "……え？ ……すみません、聞き逃して。", "mood": "puzzled", "kind": "line", "intensity": 0.7, "affection": 50, "why": "戸惑い。問い返しの上がり調子と、弱くなる語尾" },
+    { "id": "calm_low", "text": "……片付け、続けますね。", "mood": "calm", "kind": "line", "intensity": 0.7, "affection": 40, "why": "親しさ 40（語尾が消える）。次の行と同じ文" },
+    { "id": "calm_high", "text": "……片付け、続けますね。", "mood": "calm", "kind": "line", "intensity": 0.7, "affection": 85, "why": "親しさ 85（言い切る）。同じ文で、親しさだけで声色が変わるか" },
+    { "id": "wings", "text": "……手、震えてます。見ないで、ください。……あと 5 分で、出番なのに……。あの、そこに、いてくれますか。5 分だけ。", "mood": "shy", "kind": "line", "intensity": 0.7, "affection": 75, "why": "数字（5 分）と「出番」の読み" },
+    { "id": "good", "text": "……明日。……一番前に、いてほしい、です。……言えた", "mood": "joy", "kind": "line", "intensity": 0.7, "affection": 75, "probe": true, "why": "結末（達成）。「明日」「一番前」の読みと、最後の「言えた」の色" },
+    { "id": "perfect", "text": "……あの。明日、終わったら……本屋さん、一緒に行ってくれますか。……ずっと、言おうと思ってました", "mood": "joy", "kind": "line", "intensity": 0.7, "affection": 100, "why": "結末（パーフェクト）。長めの文を最後まで言い切る" }
+  ]
+}
